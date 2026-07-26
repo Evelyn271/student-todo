@@ -11,7 +11,7 @@ body {
 }
 
 .app {
-  width: min(92%, 640px);
+  width: min(92%, 720px);
   margin: 64px auto;
   padding: 32px;
   background: #ffffff;
@@ -34,12 +34,15 @@ h1 {
   gap: 10px;
 }
 
-.task-form input {
+.task-form input,
+.task-form select,
+.task-tools input {
   flex: 1;
   min-width: 0;
   padding: 12px 14px;
   border: 1px solid #d1d5db;
   border-radius: 8px;
+  background: #ffffff;
   font-size: 16px;
 }
 
@@ -55,6 +58,52 @@ button {
 
 button:hover {
   background: #1d4ed8;
+}
+
+.task-tools {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.filters {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-button {
+  padding: 8px 14px;
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.filter-button:hover {
+  background: #d1d5db;
+}
+
+.filter-button.active {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.task-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18px;
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.clear-button {
+  padding: 8px 12px;
+  background: #6b7280;
+}
+
+.clear-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
 }
 
 .empty-state {
@@ -80,17 +129,53 @@ button:hover {
   border-radius: 10px;
 }
 
-.task-item span {
+.task-content {
+  display: grid;
   flex: 1;
+  gap: 5px;
 }
 
-.task-item.completed span {
+.task-item.completed .task-title {
   color: #9ca3af;
   text-decoration: line-through;
 }
 
+.priority {
+  width: fit-content;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.priority-low {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.priority-medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.priority-high {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.edit-button,
 .delete-button {
   padding: 8px 12px;
+}
+
+.edit-button {
+  background: #f59e0b;
+}
+
+.edit-button:hover {
+  background: #d97706;
+}
+
+.delete-button {
   background: #ef4444;
 }
 
@@ -98,13 +183,23 @@ button:hover {
   background: #dc2626;
 }
 
-@media (max-width: 520px) {
+@media (max-width: 600px) {
   .app {
     margin: 24px auto;
     padding: 24px;
   }
 
   .task-form {
+    flex-direction: column;
+  }
+
+  .task-item {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .task-summary {
+    align-items: flex-start;
     flex-direction: column;
   }
 }

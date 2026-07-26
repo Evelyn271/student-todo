@@ -13,8 +13,27 @@
 
     <form id="task-form" class="task-form">
       <input id="task-input" type="text" placeholder="例如：完成 JavaScript 练习" autocomplete="off">
+      <select id="priority-select" aria-label="任务优先级">
+        <option value="low">低优先级</option>
+        <option value="medium" selected>中优先级</option>
+        <option value="high">高优先级</option>
+      </select>
       <button type="submit">添加任务</button>
     </form>
+
+    <section class="task-tools" aria-label="任务筛选工具">
+      <input id="search-input" type="search" placeholder="搜索任务" autocomplete="off">
+      <div class="filters">
+        <button class="filter-button active" type="button" data-filter="all">全部</button>
+        <button class="filter-button" type="button" data-filter="active">未完成</button>
+        <button class="filter-button" type="button" data-filter="completed">已完成</button>
+      </div>
+    </section>
+
+    <div class="task-summary">
+      <span id="task-count">共 0 项，已完成 0 项</span>
+      <button id="clear-completed" class="clear-button" type="button">清除已完成</button>
+    </div>
 
     <p id="empty-state" class="empty-state">暂时没有任务，添加一个今天的学习目标吧。</p>
     <ul id="task-list" class="task-list"></ul>
