@@ -7,27 +7,99 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <div class="background-decor" aria-hidden="true">
+    <span class="bubble bubble-1"></span>
+    <span class="bubble bubble-2"></span>
+    <span class="bubble bubble-3"></span>
+  </div>
+
   <main class="app">
-    <h1>学生学习任务管理器</h1>
-    <p class="subtitle">记录每天的学习目标，稳步完成计划。</p>
+    <header class="hero">
+      <div class="hero-text">
+        <p id="greeting" class="greeting">你好，今天也要加油呀</p>
+        <h1>学生学习任务管理器</h1>
+        <p id="today-date" class="today-date"></p>
+        <p id="daily-quote" class="daily-quote">每天进步一点点，就是最好的学习节奏。</p>
+      </div>
+      <div class="progress-card" role="img" aria-label="今日完成进度">
+        <svg class="progress-ring" viewBox="0 0 120 120" aria-hidden="true">
+          <circle class="progress-ring__track" cx="60" cy="60" r="52"></circle>
+          <circle id="progress-ring__fill" class="progress-ring__fill" cx="60" cy="60" r="52"></circle>
+        </svg>
+        <div class="progress-info">
+          <strong id="progress-percent">0%</strong>
+          <span>完成率</span>
+        </div>
+      </div>
+    </header>
+
+    <section class="stats" aria-label="任务统计">
+      <article class="stat-card">
+        <span class="stat-label">全部任务</span>
+        <strong id="stat-total">0</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">已完成</span>
+        <strong id="stat-done">0</strong>
+      </article>
+      <article class="stat-card">
+        <span class="stat-label">进行中</span>
+        <strong id="stat-active">0</strong>
+      </article>
+      <article class="stat-card stat-warning">
+        <span class="stat-label">已逾期</span>
+        <strong id="stat-overdue">0</strong>
+      </article>
+    </section>
 
     <form id="task-form" class="task-form">
-      <input id="task-input" type="text" placeholder="例如：完成 JavaScript 练习" autocomplete="off">
-      <select id="priority-select" aria-label="任务优先级">
-        <option value="low">低优先级</option>
-        <option value="medium" selected>中优先级</option>
-        <option value="high">高优先级</option>
-      </select>
-      <button type="submit">添加任务</button>
+      <input id="task-input" type="text" placeholder="例如：完成 JavaScript 练习" autocomplete="off" required>
+
+      <div class="task-form__row">
+        <select id="category-select" aria-label="学科分类">
+          <option value="general" selected>📚 通用</option>
+          <option value="programming">💻 编程</option>
+          <option value="math">🧮 数学</option>
+          <option value="english">🌐 英语</option>
+          <option value="reading">📖 阅读</option>
+          <option value="other">✨ 其他</option>
+        </select>
+
+        <select id="priority-select" aria-label="任务优先级">
+          <option value="low">低优先级</option>
+          <option value="medium" selected>中优先级</option>
+          <option value="high">高优先级</option>
+        </select>
+
+        <input id="due-date" type="date" aria-label="截止日期">
+
+        <button type="submit">添加任务</button>
+      </div>
     </form>
 
     <section class="task-tools" aria-label="任务筛选工具">
-      <input id="search-input" type="search" placeholder="搜索任务" autocomplete="off">
-      <div class="filters">
-        <button class="filter-button active" type="button" data-filter="all">全部</button>
-        <button class="filter-button" type="button" data-filter="active">未完成</button>
-        <button class="filter-button" type="button" data-filter="completed">已完成</button>
+      <input id="search-input" type="search" placeholder="🔍 搜索任务" autocomplete="off">
+
+      <div class="task-tools__row">
+        <div class="filters" role="tablist">
+          <button class="filter-button active" type="button" data-filter="all">全部</button>
+          <button class="filter-button" type="button" data-filter="active">未完成</button>
+          <button class="filter-button" type="button" data-filter="completed">已完成</button>
+          <button class="filter-button" type="button" data-filter="overdue">已逾期</button>
+        </div>
+
+        <label class="sort-control">
+          <span>排序</span>
+          <select id="sort-select">
+            <option value="created">创建时间</option>
+            <option value="due">截止日期</option>
+            <option value="priority">优先级</option>
+            <option value="title">标题</option>
+          </select>
+        </label>
       </div>
+
+      <div id="category-chips" class="category-chips" role="tablist" aria-label="学科筛选"></div>
     </section>
 
     <div class="task-summary">

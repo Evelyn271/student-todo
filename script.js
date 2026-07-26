@@ -1,39 +1,98 @@
-﻿const storageKey = "student-todo-tasks";
+﻿const storageKey = "student-todo-tasks-v2";
+const quotes = [
+  "每天进步一点点，就是最好的学习节奏。",
+  "把大目标拆成小任务，一步步走就会到达。",
+  "今天不想学，所以才要学——这是成长的开始。",
+  "专注一小时，胜过拖延一整天。",
+  "不积跬步，无以至千里；不积小流，无以成江海。",
+  "慢慢来，比较快。"
+];
+const categoryNames = {
+  general: "通用",
+  programming: "编程",
+  math: "数学",
+  english: "英语",
+  reading: "阅读",
+  other: "其他"
+};
+const priorityRank = { high: 3, medium: 2, low: 1 };
+
 const taskForm = document.querySelector("#task-form");
 const taskInput = document.querySelector("#task-input");
+const categorySelect = document.querySelector("#category-select");
 const prioritySelect = document.querySelector("#priority-select");
+const dueDateInput = document.querySelector("#due-date");
 const searchInput = document.querySelector("#search-input");
+const sortSelect = document.querySelector("#sort-select");
 const filterButtons = document.querySelectorAll(".filter-button");
+const categoryChips = document.querySelector("#category-chips");
 const clearCompletedButton = document.querySelector("#clear-completed");
 const taskCount = document.querySelector("#task-count");
 const taskList = document.querySelector("#task-list");
 const emptyState = document.querySelector("#empty-state");
+const progressRingFill = document.querySelector("#progress-ring__fill");
+const progressPercent = document.querySelector("#progress-percent");
+const statTotal = document.querySelector("#stat-total");
+const statDone = document.querySelector("#stat-done");
+const statActive = document.querySelector("#stat-active");
+const statOverdue = document.querySelector("#stat-overdue");
+const greetingEl = document.querySelector("#greeting");
+const todayDateEl = document.querySelector("#today-date");
+const dailyQuoteEl = document.querySelector("#daily-quote");
 
 let tasks = loadTasks();
 let currentFilter = "all";
+let currentCategory = "all";
 let searchKeyword = "";
+let currentSort = "created";
+
+const ringCircumference = 2 * Math.PI * 52;
 
 function createTaskId() {
   return window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
 }
 
+function startOfDay(date) {
+  const value = new Date(date);
+  value.setHours(0, 0, 0, 0);
+  return value;
+}
+
+function isOverdue(task) {
+  if (!task.dueDate || task.completed) return false;
+  return startOfDay(new Date()) > startOfDay(task.dueDate);
+}
+
+function formatDueDate(dueDate) {
+  if (!dueDate) return "";
+  const today = startOfDay(new Date());
+  const target = startOfDay(dueDate);
+  const diffDays = Math.round((target - today) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "今天截止";
+  if (diffDays === 1) return "明天截止";
+  if (diffDays === -1) return "昨天截止";
+  if (diffDays < 0) return `已逾期 ${Math.abs(diffDays)} 天`;
+  if (diffDays <= 7) return `${diffDays} 天后`;
+
+  return `${dueDate.getMonth() + 1} 月 ${dueDate.getDate()} 日`;
+}
+
 function loadTasks() {
   try {
-    const savedTasks = localStorage.getItem(storageKey);
-    const parsedTasks = savedTasks ? JSON.parse(savedTasks) : [];
+    const saved = localStorage.getItem(storageKey);
+    const parsed = saved ? JSON.parse(saved) : [];
+    if (!Array.isArray(parsed)) return [];
 
-    if (!Array.isArray(parsedTasks)) {
-      return [];
-    }
-
-    return parsedTasks
+    return parsed
       .map((task) => ({
         id: task.id || createTaskId(),
         title: String(task.title || ""),
         completed: Boolean(task.completed),
-        priority: ["low", "medium", "high"].includes(task.priority)
-          ? task.priority
-          : "medium"
+        priority: ["low", "medium", "high"].includes(task.priority) ? task.priority : "medium",
+        category: categoryNames[task.category] ? task.category : "general",
+        dueDate: task.dueDate ? new Date(task.dueDate) : null,
+        createdAt: task.createdAt || new Date().toISOString()
       }))
       .filter((task) => task.title);
   } catch (error) {
@@ -43,7 +102,16 @@ function loadTasks() {
 }
 
 function saveTasks() {
-  localStorage.setItem(storageKey, JSON.stringify(tasks));
+  const serialized = tasks.map((task) => ({
+    id: task.id,
+    title: task.title,
+    completed: task.completed,
+    priority: task.priority,
+    category: task.category,
+    dueDate: task.dueDate ? task.dueDate.toISOString() : null,
+    createdAt: task.createdAt
+  }));
+  localStorage.setItem(storageKey, JSON.stringify(serialized));
 }
 
 function getVisibleTasks() {
@@ -51,16 +119,88 @@ function getVisibleTasks() {
 
   return tasks.filter((task) => {
     const matchesSearch = task.title.toLowerCase().includes(normalizedKeyword);
-    const matchesFilter = currentFilter === "all"
-      || (currentFilter === "active" && !task.completed)
-      || (currentFilter === "completed" && task.completed);
+    const matchesCategory = currentCategory === "all" || task.category === currentCategory;
+    const matchesFilter =
+      currentFilter === "all" ||
+      (currentFilter === "active" && !task.completed) ||
+      (currentFilter === "completed" && task.completed) ||
+      (currentFilter === "overdue" && isOverdue(task));
 
-    return matchesSearch && matchesFilter;
+    return matchesSearch && matchesCategory && matchesFilter;
+  });
+}
+
+function sortTasks(list) {
+  const sorted = [...list];
+
+  sorted.sort((a, b) => {
+    if (currentSort === "due") {
+      if (!a.dueDate && !b.dueDate) return 0;
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return a.dueDate - b.dueDate;
+    }
+    if (currentSort === "priority") {
+      return (priorityRank[b.priority] || 0) - (priorityRank[a.priority] || 0);
+    }
+    if (currentSort === "title") {
+      return a.title.localeCompare(b.title, "zh-CN");
+    }
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+
+  return sorted;
+}
+
+function renderStats() {
+  const total = tasks.length;
+  const done = tasks.filter((task) => task.completed).length;
+  const active = total - done;
+  const overdue = tasks.filter(isOverdue).length;
+
+  statTotal.textContent = total;
+  statDone.textContent = done;
+  statActive.textContent = active;
+  statOverdue.textContent = overdue;
+
+  const percent = total === 0 ? 0 : Math.round((done / total) * 100);
+  progressPercent.textContent = `${percent}%`;
+  const offset = ringCircumference * (1 - percent / 100);
+  progressRingFill.style.strokeDashoffset = offset;
+}
+
+function renderCategoryChips() {
+  categoryChips.innerHTML = "";
+
+  const allChip = document.createElement("button");
+  allChip.type = "button";
+  allChip.className = `category-chip${currentCategory === "all" ? " active" : ""}`;
+  allChip.textContent = "全部学科";
+  allChip.addEventListener("click", () => {
+    currentCategory = "all";
+    renderCategoryChips();
+    renderTasks();
+  });
+  categoryChips.append(allChip);
+
+  Object.entries(categoryNames).forEach(([key, name]) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `category-chip${currentCategory === key ? " active" : ""}`;
+    chip.textContent = name;
+    chip.addEventListener("click", () => {
+      currentCategory = currentCategory === key ? "all" : key;
+      renderCategoryChips();
+      renderTasks();
+    });
+    categoryChips.append(chip);
   });
 }
 
 function renderTasks() {
-  const visibleTasks = getVisibleTasks();
+  renderStats();
+
+  const visibleTasks = sortTasks(getVisibleTasks());
   const completedCount = tasks.filter((task) => task.completed).length;
 
   taskList.innerHTML = "";
@@ -73,10 +213,12 @@ function renderTasks() {
 
   visibleTasks.forEach((task) => {
     const item = document.createElement("li");
-    item.className = `task-item${task.completed ? " completed" : ""}`;
+    const overdue = isOverdue(task);
+    item.className = `task-item${task.completed ? " completed" : ""}${overdue ? " overdue" : ""}`;
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
+    checkbox.className = "task-checkbox";
     checkbox.checked = task.completed;
     checkbox.setAttribute("aria-label", `标记“${task.title}”完成`);
     checkbox.addEventListener("change", () => {
@@ -92,70 +234,120 @@ function renderTasks() {
     title.className = "task-title";
     title.textContent = task.title;
 
-    const priority = document.createElement("small");
-    priority.className = `priority priority-${task.priority}`;
-    priority.textContent = `${{ low: "低", medium: "中", high: "高" }[task.priority]}优先级`;
-    content.append(title, priority);
+    const meta = document.createElement("div");
+    meta.className = "task-meta";
+
+    const categoryTag = document.createElement("span");
+    categoryTag.className = "tag tag-category";
+    categoryTag.textContent = categoryNames[task.category] || "通用";
+    meta.append(categoryTag);
+
+    const priorityTag = document.createElement("span");
+    priorityTag.className = `tag tag-priority-${task.priority}`;
+    priorityTag.textContent = `${({ low: "低", medium: "中", high: "高" })[task.priority]}优先级`;
+    meta.append(priorityTag);
+
+    if (task.dueDate) {
+      const dueTag = document.createElement("span");
+      const dueOverdue = overdue;
+      dueTag.className = `tag${dueOverdue ? " tag-due-overdue" : " tag-due"}`;
+      dueTag.textContent = `📅 ${formatDueDate(task.dueDate)}`;
+      meta.append(dueTag);
+    }
+
+    content.append(title, meta);
+
+    const actions = document.createElement("div");
+    actions.className = "task-actions";
 
     const editButton = document.createElement("button");
-    editButton.className = "edit-button";
     editButton.type = "button";
-    editButton.textContent = "编辑";
-    editButton.addEventListener("click", () => {
-      const newTitle = window.prompt("请输入新的任务内容：", task.title);
-
-      if (newTitle === null) {
-        return;
-      }
-
-      const trimmedTitle = newTitle.trim();
-      if (!trimmedTitle) {
-        window.alert("任务内容不能为空。");
-        return;
-      }
-
-      task.title = trimmedTitle;
-      saveTasks();
-      renderTasks();
-    });
+    editButton.className = "icon-button";
+    editButton.title = "编辑";
+    editButton.textContent = "✎";
+    editButton.addEventListener("click", () => editTask(task));
 
     const deleteButton = document.createElement("button");
-    deleteButton.className = "delete-button";
     deleteButton.type = "button";
-    deleteButton.textContent = "删除";
-    deleteButton.addEventListener("click", () => {
-      if (!window.confirm(`确定删除“${task.title}”吗？`)) {
-        return;
-      }
+    deleteButton.className = "icon-button danger";
+    deleteButton.title = "删除";
+    deleteButton.textContent = "✕";
+    deleteButton.addEventListener("click", () => deleteTask(task));
 
-      tasks = tasks.filter((currentTask) => currentTask.id !== task.id);
-      saveTasks();
-      renderTasks();
-    });
+    actions.append(editButton, deleteButton);
 
-    item.append(checkbox, content, editButton, deleteButton);
+    item.append(checkbox, content, actions);
     taskList.append(item);
   });
+}
+
+function editTask(task) {
+  const newTitle = window.prompt("请输入新的任务内容：", task.title);
+  if (newTitle === null) return;
+
+  const trimmedTitle = newTitle.trim();
+  if (!trimmedTitle) {
+    window.alert("任务内容不能为空。");
+    return;
+  }
+
+  task.title = trimmedTitle;
+  saveTasks();
+  renderTasks();
+}
+
+function deleteTask(task) {
+  if (!window.confirm(`确定删除“${task.title}”吗？`)) return;
+
+  tasks = tasks.filter((current) => current.id !== task.id);
+  saveTasks();
+  renderTasks();
+}
+
+function setupHeader() {
+  const hour = new Date().getHours();
+  let greeting = "你好";
+  if (hour < 6) greeting = "夜深了，记得休息";
+  else if (hour < 11) greeting = "早上好，新的一天";
+  else if (hour < 14) greeting = "中午好，保持专注";
+  else if (hour < 18) greeting = "下午好，继续加油";
+  else if (hour < 22) greeting = "晚上好，辛苦了";
+  else greeting = "夜深了，记得早点休息";
+
+  greetingEl.textContent = greeting;
+
+  const date = new Date();
+  const weekday = ["日", "一", "二", "三", "四", "五", "六"][date.getDay()];
+  todayDateEl.textContent = `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日 星期${weekday}`;
+
+  dailyQuoteEl.textContent = quotes[date.getDate() % quotes.length];
 }
 
 taskForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const title = taskInput.value.trim();
-
   if (!title) {
     taskInput.focus();
     return;
   }
 
+  const dueDateValue = dueDateInput.value ? new Date(dueDateInput.value) : null;
+
   tasks.push({
     id: createTaskId(),
     title,
     completed: false,
-    priority: prioritySelect.value
+    priority: prioritySelect.value,
+    category: categorySelect.value,
+    dueDate: dueDateValue,
+    createdAt: new Date().toISOString()
   });
+
   saveTasks();
   taskInput.value = "";
+  dueDateInput.value = "";
   prioritySelect.value = "medium";
+  categorySelect.value = "general";
   renderTasks();
   taskInput.focus();
 });
@@ -165,11 +357,16 @@ searchInput.addEventListener("input", () => {
   renderTasks();
 });
 
+sortSelect.addEventListener("change", () => {
+  currentSort = sortSelect.value;
+  renderTasks();
+});
+
 filterButtons.forEach((button) => {
   button.addEventListener("click", () => {
     currentFilter = button.dataset.filter;
-    filterButtons.forEach((currentButton) => {
-      currentButton.classList.toggle("active", currentButton === button);
+    filterButtons.forEach((current) => {
+      current.classList.toggle("active", current === button);
     });
     renderTasks();
   });
@@ -177,14 +374,18 @@ filterButtons.forEach((button) => {
 
 clearCompletedButton.addEventListener("click", () => {
   const completedCount = tasks.filter((task) => task.completed).length;
-
-  if (completedCount === 0 || !window.confirm(`确定清除 ${completedCount} 个已完成任务吗？`)) {
-    return;
-  }
+  if (completedCount === 0 || !window.confirm(`确定清除 ${completedCount} 个已完成任务吗？`)) return;
 
   tasks = tasks.filter((task) => !task.completed);
   saveTasks();
   renderTasks();
 });
 
+if (progressRingFill) {
+  progressRingFill.style.strokeDasharray = ringCircumference;
+  progressRingFill.style.strokeDashoffset = ringCircumference;
+}
+
+setupHeader();
+renderCategoryChips();
 renderTasks();
