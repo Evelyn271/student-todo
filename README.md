@@ -14,6 +14,7 @@
 - 🔍 **关键词搜索**：实时过滤任务标题
 - 🎛️ **多维筛选**：全部、未完成、已完成、已逾期
 - 📋 **灵活排序**：创建时间、截止日期、优先级、标题
+- 🌙 **深色 / 浅色主题**：跟随系统或手动切换，自动记忆
 - 💾 **本地持久化**：基于 `localStorage` 自动保存
 - 📱 **响应式设计**：手机、平板和电脑均有良好体验
 
@@ -23,25 +24,39 @@
 - 玻璃拟态卡片
 - 浮动光晕背景
 - 平滑动画和悬停效果
+- 支持浅色 / 深色双主题
 
 ## 🛠️ 技术栈
 
 - HTML5
-- CSS3（CSS 变量、Grid、动画）
+- CSS3（CSS 变量、Grid、动画、`prefers-color-scheme`）
 - 原生 JavaScript（无第三方依赖）
 - 浏览器 LocalStorage
 
 ## 🚀 运行方式
 
-直接在浏览器中打开 `index.html` 即可使用。
+### 方式一：本地预览
+
+直接在浏览器中打开 `index.html`。
+
+### 方式二：GitHub Pages 部署
+
+1. 在 GitHub 仓库页面进入 `Settings` → `Pages`
+2. Source 选择 `Deploy from a branch`
+3. Branch 选择 `main`，目录选择 `/ (root)`
+4. 点击 `Save`
+5. 等待 1 分钟左右，访问：
+   ```
+   https://evelyn271.github.io/student-todo/
+   ```
 
 ## 📂 项目结构
 
 ```text
 student-todo/
 ├── index.html      # 页面结构
-├── style.css       # 浅蓝主题样式
-├── script.js       # 交互与数据逻辑
+├── style.css       # 浅蓝 + 深色主题样式
+├── script.js       # 交互、数据与主题
 └── README.md       # 项目说明
 ```
 
@@ -50,5 +65,4 @@ student-todo/
 - [ ] 任务拖拽排序
 - [ ] 数据导出 / 导入
 - [ ] 番茄钟计时
-- [ ] 主题切换（深色模式）
-- [ ] 使用 GitHub Pages 部署
+- [ ] PWA 离线支持
