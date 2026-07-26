@@ -276,9 +276,18 @@ function renderTasks() {
 
     actions.append(editButton, deleteButton);
 
+    item.__task = task;
+    item.addEventListener("click", (event) => {
+      if (event.target.closest(".task-actions")) return;
+      const items = getVisibleTaskItems();
+      focusedTaskIndex = items.indexOf(item);
+      updateFocusedTaskHighlight();
+    });
     item.append(checkbox, content, actions);
     taskList.append(item);
   });
+
+  updateFocusedTaskHighlight();
 }
 
 function editTask(task) {
@@ -389,3 +398,158 @@ if (progressRingFill) {
 setupHeader();
 renderCategoryChips();
 renderTasks();
+
+// ========== 主题管理 ==========
+const themeStorageKey = "student-todo-theme";
+const themeToggle = document.querySelector("#theme-toggle");
+
+function getStoredTheme() {
+  return localStorage.getItem(themeStorageKey);
+}
+
+function getSystemTheme() {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem(themeStorageKey, theme);
+  if (themeToggle) {
+    themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+  }
+}
+
+function initTheme() {
+  const stored = getStoredTheme();
+  applyTheme(stored || getSystemTheme());
+
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      const current = document.documentElement.getAttribute("data-theme") || "light";
+      applyTheme(current === "dark" ? "light" : "dark");
+    });
+  }
+
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (event) => {
+    if (!getStoredTheme()) {
+      applyTheme(event.matches ? "dark" : "light");
+    }
+  });
+}
+
+// ========== 键盘快捷键 ==========
+let focusedTaskIndex = -1;
+
+function getVisibleTaskItems() {
+  return Array.from(taskList.querySelectorAll(".task-item"));
+}
+
+function updateFocusedTaskHighlight() {
+  const items = getVisibleTaskItems();
+  items.forEach((item, index) => {
+    item.classList.toggle("is-focused", index === focusedTaskIndex);
+  });
+}
+
+function focusTaskAt(direction) {
+  const items = getVisibleTaskItems();
+  if (items.length === 0) {
+    focusedTaskIndex = -1;
+    return;
+  }
+
+  focusedTaskIndex = (focusedTaskIndex + direction + items.length) % items.length;
+  updateFocusedTaskHighlight();
+
+  const target = items[focusedTaskIndex];
+  if (target) {
+    target.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+}
+
+function toggleFocusedTaskCompletion() {
+  const items = getVisibleTaskItems();
+  const task = items[focusedTaskIndex]?.__task;
+  if (!task) return;
+  task.completed = !task.completed;
+  saveTasks();
+  renderTasks();
+}
+
+function deleteFocusedTask() {
+  const items = getVisibleTaskItems();
+  const task = items[focusedTaskIndex]?.__task;
+  if (!task) return;
+  deleteTask(task);
+  focusedTaskIndex = Math.max(focusedTaskIndex - 1, -1);
+}
+
+function handleKeyboardShortcut(event) {
+  const target = event.target;
+  const isTyping = target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
+  const modifier = event.ctrlKey || event.metaKey;
+
+  if (modifier && event.key === "Enter") {
+    event.preventDefault();
+    if (taskInput) taskInput.focus();
+    return;
+  }
+
+  if (modifier && event.key.toLowerCase() === "k") {
+    event.preventDefault();
+    if (searchInput) searchInput.focus();
+    return;
+  }
+
+  if (modifier && event.key.toLowerCase() === "d") {
+    event.preventDefault();
+    if (themeToggle) themeToggle.click();
+    return;
+  }
+
+  if (modifier && event.shiftKey && event.key.toLowerCase() === "c") {
+    event.preventDefault();
+    if (clearCompletedButton && !clearCompletedButton.disabled) {
+      clearCompletedButton.click();
+    }
+    return;
+  }
+
+  if (target === taskInput && event.key === "Escape") {
+    taskInput.value = "";
+    taskInput.blur();
+    return;
+  }
+
+  if (target === searchInput && event.key === "Escape") {
+    searchInput.value = "";
+    searchKeyword = "";
+    searchInput.blur();
+    renderTasks();
+    return;
+  }
+
+  if (isTyping) return;
+
+  if (event.key === "ArrowDown") {
+    event.preventDefault();
+    focusTaskAt(1);
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    focusTaskAt(-1);
+  } else if (event.key === " " && focusedTaskIndex >= 0) {
+    event.preventDefault();
+    toggleFocusedTaskCompletion();
+  } else if (event.key === "Delete" && focusedTaskIndex >= 0) {
+    event.preventDefault();
+    deleteFocusedTask();
+  } else if (event.key === "/" && focusedTaskIndex === -1) {
+    event.preventDefault();
+    if (searchInput) searchInput.focus();
+  }
+}
+
+document.addEventListener("keydown", handleKeyboardShortcut);
+
+initTheme();
+

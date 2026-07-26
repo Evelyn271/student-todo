@@ -1,10 +1,13 @@
 ﻿<!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#38bdf8">
+  <meta name="description" content="一个帮助学生记录每日学习任务的网页应用">
   <title>学生学习任务管理器</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📚%3C/text%3E%3C/svg%3E">
 </head>
 <body>
   <div class="background-decor" aria-hidden="true">
@@ -16,7 +19,13 @@
   <main class="app">
     <header class="hero">
       <div class="hero-text">
-        <p id="greeting" class="greeting">你好，今天也要加油呀</p>
+        <div class="hero-top">
+          <p id="greeting" class="greeting">你好，今天也要加油呀</p>
+          <button id="theme-toggle" class="theme-toggle" type="button" aria-label="切换主题" title="切换主题 (Ctrl+D)">
+            <span class="theme-toggle__icon theme-toggle__icon--sun" aria-hidden="true">☀️</span>
+            <span class="theme-toggle__icon theme-toggle__icon--moon" aria-hidden="true">🌙</span>
+          </button>
+        </div>
         <h1>学生学习任务管理器</h1>
         <p id="today-date" class="today-date"></p>
         <p id="daily-quote" class="daily-quote">每天进步一点点，就是最好的学习节奏。</p>
@@ -53,7 +62,7 @@
     </section>
 
     <form id="task-form" class="task-form">
-      <input id="task-input" type="text" placeholder="例如：完成 JavaScript 练习" autocomplete="off" required>
+      <input id="task-input" type="text" placeholder="例如：完成 JavaScript 练习 (Ctrl+Enter)" autocomplete="off" required>
 
       <div class="task-form__row">
         <select id="category-select" aria-label="学科分类">
@@ -78,7 +87,7 @@
     </form>
 
     <section class="task-tools" aria-label="任务筛选工具">
-      <input id="search-input" type="search" placeholder="🔍 搜索任务" autocomplete="off">
+      <input id="search-input" type="search" placeholder="🔍 搜索任务 (Ctrl+K)" autocomplete="off">
 
       <div class="task-tools__row">
         <div class="filters" role="tablist">
@@ -109,6 +118,14 @@
 
     <p id="empty-state" class="empty-state">暂时没有任务，添加一个今天的学习目标吧。</p>
     <ul id="task-list" class="task-list"></ul>
+
+    <footer class="shortcuts-hint" aria-label="键盘快捷键">
+      <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> 添加任务</span>
+      <span><kbd>Ctrl</kbd>+<kbd>K</kbd> 搜索</span>
+      <span><kbd>Ctrl</kbd>+<kbd>D</kbd> 切换主题</span>
+      <span><kbd>↑</kbd>/<kbd>↓</kbd> 选择任务</span>
+      <span><kbd>Space</kbd> 完成 · <kbd>Delete</kbd> 删除</span>
+    </footer>
   </main>
   <script src="script.js"></script>
 </body>
