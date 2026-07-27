@@ -1,4 +1,10 @@
 ﻿const storageKey = "student-todo-tasks-v2";
+const themeStorageKey = "student-todo-theme";
+const ringCircumference = 2 * Math.PI * 54;
+const POMODORO_DURATION = 25 * 60;
+const BREAK_DURATION = 5 * 60;
+const timerRingCircumference = 2 * Math.PI * 44;
+
 const quotes = [
   "每天进步一点点，就是最好的学习节奏。",
   "把大目标拆成小任务，一步步走就会到达。",
@@ -7,6 +13,7 @@ const quotes = [
   "不积跬步，无以至千里；不积小流，无以成江海。",
   "慢慢来，比较快。"
 ];
+
 const categoryNames = {
   general: "通用",
   programming: "编程",
@@ -15,29 +22,17 @@ const categoryNames = {
   reading: "阅读",
   other: "其他"
 };
-const priorityRank = { high: 3, medium: 2, low: 1 };
 
-const taskForm = document.querySelector("#task-form");
+const priorityLabels = { low: "低", medium: "中", high: "高" };
+const priorityRank = { high: 3, medium: 2, low: 1 };
+const recurrenceLabels = { none: "不重复", daily: "每天", weekly: "每周", monthly: "每月" };
+
 const taskInput = document.querySelector("#task-input");
 const categorySelect = document.querySelector("#category-select");
 const prioritySelect = document.querySelector("#priority-select");
-const dueDateInput = document.querySelector("#due-date");
 const recurrenceSelect = document.querySelector("#recurrence-select");
-const timerDisplay = document.querySelector("#timer-display");
-const timerPhase = document.querySelector("#timer-phase");
-const timerToggle = document.querySelector("#timer-toggle");
-const timerReset = document.querySelector("#timer-reset");
-const timerSkip = document.querySelector("#timer-skip");
-const timerCount = document.querySelector("#timer-count");
-const timerRingFill = document.querySelector("#timer-ring-fill");
-const timerCard = document.querySelector(".timer-card");
-const settingsToggle = document.querySelector("#settings-toggle");
-const settingsPanel = document.querySelector("#settings-panel");
-const exportJsonButton = document.querySelector("#export-json");
-const exportCsvButton = document.querySelector("#export-csv");
-const importJsonInput = document.querySelector("#import-json");
-const clearAllButton = document.querySelector("#clear-all");
-const settingsStatus = document.querySelector("#settings-status");
+const dueDateInput = document.querySelector("#due-date");
+const taskSubmit = document.querySelector("#task-submit");
 const searchInput = document.querySelector("#search-input");
 const sortSelect = document.querySelector("#sort-select");
 const filterButtons = document.querySelectorAll(".filter-button");
@@ -46,8 +41,10 @@ const clearCompletedButton = document.querySelector("#clear-completed");
 const taskCount = document.querySelector("#task-count");
 const taskList = document.querySelector("#task-list");
 const emptyState = document.querySelector("#empty-state");
-const progressRingFill = document.querySelector("#progress-ring__fill");
+const emptyStateText = document.querySelector("#empty-state-text");
 const progressPercent = document.querySelector("#progress-percent");
+const progressBarFill = document.querySelector("#progress-bar-fill");
+const progressBand = document.querySelector(".progress-band");
 const statTotal = document.querySelector("#stat-total");
 const statDone = document.querySelector("#stat-done");
 const statActive = document.querySelector("#stat-active");
@@ -55,19 +52,34 @@ const statOverdue = document.querySelector("#stat-overdue");
 const greetingEl = document.querySelector("#greeting-text");
 const todayDateEl = document.querySelector("#today-date");
 const dailyQuoteEl = document.querySelector("#daily-quote-text");
+const themeToggle = document.querySelector("#theme-toggle");
+const settingsToggle = document.querySelector("#settings-toggle");
+const settingsClose = document.querySelector("#settings-close");
+const settingsPanel = document.querySelector("#settings-panel");
+const exportJsonButton = document.querySelector("#export-json");
+const exportCsvButton = document.querySelector("#export-csv");
+const importJsonInput = document.querySelector("#import-json");
+const clearAllButton = document.querySelector("#clear-all");
+const settingsStatus = document.querySelector("#settings-status");
+const timerDisplay = document.querySelector("#timer-display");
+const timerPhase = document.querySelector("#timer-phase");
+const timerToggle = document.querySelector("#timer-toggle");
+const timerReset = document.querySelector("#timer-reset");
+const timerSkip = document.querySelector("#timer-skip");
+const timerCount = document.querySelector("#timer-count");
+const timerRingFill = document.querySelector("#timer-ring-fill");
+const timerCard = document.querySelector(".timer-card");
+const confettiContainer = document.querySelector("#confetti-container");
+const navItems = document.querySelectorAll(".nav-item");
 
 let tasks = loadTasks();
 let currentFilter = "all";
 let currentCategory = "all";
 let searchKeyword = "";
 let currentSort = "created";
+let currentView = "tasks";
 
-const ringCircumference = 2 * Math.PI * 58;
-const timerRingCircumference = 2 * Math.PI * 54;
-const POMODORO_DURATION = 25 * 60;
-const BREAK_DURATION = 5 * 60;
-
-let timerState = {
+const timerState = {
   phase: "focus",
   remaining: POMODORO_DURATION,
   running: false,
@@ -75,6 +87,11 @@ let timerState = {
   pomodoroCount: 0
 };
 
+let lastProgressPercent = -1;
+
+// =========================================================
+// 工具
+// =========================================================
 function createTaskId() {
   return window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
 }
@@ -101,10 +118,12 @@ function formatDueDate(dueDate) {
   if (diffDays === -1) return "昨天截止";
   if (diffDays < 0) return `已逾期 ${Math.abs(diffDays)} 天`;
   if (diffDays <= 7) return `${diffDays} 天后`;
-
   return `${dueDate.getMonth() + 1} 月 ${dueDate.getDate()} 日`;
 }
 
+// =========================================================
+// 数据持久化
+// =========================================================
 function loadTasks() {
   try {
     const saved = localStorage.getItem(storageKey);
@@ -143,10 +162,29 @@ function saveTasks() {
   localStorage.setItem(storageKey, JSON.stringify(serialized));
 }
 
+// =========================================================
+// 过滤 / 排序
+// =========================================================
+function applyViewFilter() {
+  if (currentView === "today") {
+    const today = startOfDay(new Date());
+    return tasks.filter((task) => {
+      if (task.dueDate) return startOfDay(task.dueDate).getTime() === today.getTime();
+      return !task.completed;
+    });
+  }
+  if (currentView === "upcoming") {
+    const today = startOfDay(new Date());
+    return tasks.filter((task) => task.dueDate && startOfDay(task.dueDate) > today && !task.completed);
+  }
+  return tasks;
+}
+
 function getVisibleTasks() {
+  const baseList = applyViewFilter();
   const normalizedKeyword = searchKeyword.toLowerCase();
 
-  return tasks.filter((task) => {
+  return baseList.filter((task) => {
     const matchesSearch = task.title.toLowerCase().includes(normalizedKeyword);
     const matchesCategory = currentCategory === "all" || task.category === currentCategory;
     const matchesFilter =
@@ -161,7 +199,6 @@ function getVisibleTasks() {
 
 function sortTasks(list) {
   const sorted = [...list];
-
   sorted.sort((a, b) => {
     if (currentSort === "due") {
       if (!a.dueDate && !b.dueDate) return 0;
@@ -177,10 +214,12 @@ function sortTasks(list) {
     }
     return new Date(b.createdAt) - new Date(a.createdAt);
   });
-
   return sorted;
 }
 
+// =========================================================
+// 数字动画
+// =========================================================
 function animateNumber(element, targetValue) {
   const current = Number(element.dataset.value || 0);
   if (current === targetValue) {
@@ -192,8 +231,8 @@ function animateNumber(element, targetValue) {
   const duration = 480;
   const startValue = current;
 
-  element.classList.add("bump");
-  setTimeout(() => element.classList.remove("bump"), 520);
+  element.closest(".stat-card")?.classList.add("bump");
+  setTimeout(() => element.closest(".stat-card")?.classList.remove("bump"), 520);
 
   function tick(now) {
     const progress = Math.min((now - startTime) / duration, 1);
@@ -201,17 +240,14 @@ function animateNumber(element, targetValue) {
     const value = Math.round(startValue + (targetValue - startValue) * eased);
     element.textContent = value;
     element.dataset.value = String(value);
-
-    if (progress < 1) {
-      requestAnimationFrame(tick);
-    }
+    if (progress < 1) requestAnimationFrame(tick);
   }
-
   requestAnimationFrame(tick);
 }
 
-let lastProgressPercent = -1;
-
+// =========================================================
+// 渲染：统计 / 进度
+// =========================================================
 function renderStats() {
   const total = tasks.length;
   const done = tasks.filter((task) => task.completed).length;
@@ -225,21 +261,17 @@ function renderStats() {
 
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);
   progressPercent.textContent = `${percent}%`;
-  const offset = ringCircumference * (1 - percent / 100);
-  progressRingFill.style.strokeDashoffset = offset;
+  if (progressBarFill) progressBarFill.style.width = `${percent}%`;
 
-  const progressCard = document.querySelector(".progress-card");
-  if (progressCard && lastProgressPercent !== -1 && percent > lastProgressPercent) {
-    progressCard.classList.add("update-pulse");
-    if (percent === 100 && lastProgressPercent < 100) {
-      progressCard.classList.add("complete");
-    }
-    setTimeout(() => progressCard.classList.remove("update-pulse", "complete"), 800);
+  if (progressBand && lastProgressPercent !== -1 && percent > lastProgressPercent) {
+    progressBand.classList.add("complete");
+    setTimeout(() => progressBand.classList.remove("complete"), 800);
   }
   lastProgressPercent = percent;
 }
 
 function renderCategoryChips() {
+  if (!categoryChips) return;
   categoryChips.innerHTML = "";
 
   const allChip = document.createElement("button");
@@ -267,6 +299,9 @@ function renderCategoryChips() {
   });
 }
 
+// =========================================================
+// 渲染：任务列表
+// =========================================================
 function renderTasks() {
   renderStats();
 
@@ -274,20 +309,21 @@ function renderTasks() {
   const completedCount = tasks.filter((task) => task.completed).length;
 
   taskList.innerHTML = "";
-  const emptyText = document.querySelector("#empty-state-text");
-  if (emptyText) {
-    emptyText.textContent = tasks.length === 0
-      ? "暂时没有任务，添加一个今天的学习目标吧。"
-      : "没有符合当前条件的任务。";
-  }
-  emptyState.hidden = visibleTasks.length > 0;
   taskCount.textContent = `共 ${tasks.length} 项，已完成 ${completedCount} 项`;
   clearCompletedButton.disabled = completedCount === 0;
+  emptyState.hidden = visibleTasks.length > 0;
 
-  visibleTasks.forEach((task) => {
+  if (emptyStateText) {
+    emptyStateText.textContent = tasks.length === 0
+      ? "添加一个今天的学习目标吧。"
+      : "没有符合当前条件的任务。";
+  }
+
+  visibleTasks.forEach((task, index) => {
     const item = document.createElement("li");
     const overdue = isOverdue(task);
     item.className = `task-item${task.completed ? " completed" : ""}${overdue ? " overdue" : ""}`;
+    item.style.animationDelay = `${Math.min(index * 0.04, 0.4)}s`;
 
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
@@ -299,9 +335,7 @@ function renderTasks() {
       task.completed = checkbox.checked;
       if (!wasCompleted && task.completed) {
         triggerCelebration(item);
-        if (task.recurrence && task.recurrence !== "none") {
-          scheduleRecurrence(task);
-        }
+        if (task.recurrence && task.recurrence !== "none") scheduleRecurrence(task);
       }
       saveTasks();
       renderTasks();
@@ -324,13 +358,12 @@ function renderTasks() {
 
     const priorityTag = document.createElement("span");
     priorityTag.className = `tag tag-priority-${task.priority}`;
-    priorityTag.textContent = `${({ low: "低", medium: "中", high: "高" })[task.priority]}优先级`;
+    priorityTag.textContent = `${priorityLabels[task.priority]}优先级`;
     meta.append(priorityTag);
 
     if (task.dueDate) {
       const dueTag = document.createElement("span");
-      const dueOverdue = overdue;
-      dueTag.className = `tag${dueOverdue ? " tag-due-overdue" : " tag-due"}`;
+      dueTag.className = `tag${overdue ? " tag-due-overdue" : " tag-due"}`;
       dueTag.textContent = `📅 ${formatDueDate(task.dueDate)}`;
       meta.append(dueTag);
     }
@@ -338,8 +371,7 @@ function renderTasks() {
     if (task.recurrence && task.recurrence !== "none") {
       const recurTag = document.createElement("span");
       recurTag.className = "tag tag-recurring";
-      const labels = { daily: "🔁 每天", weekly: "🔁 每周", monthly: "🔁 每月" };
-      recurTag.textContent = labels[task.recurrence] || "🔁 重复";
+      recurTag.textContent = `🔁 ${recurrenceLabels[task.recurrence]}`;
       meta.append(recurTag);
     }
 
@@ -350,77 +382,34 @@ function renderTasks() {
 
     const editButton = document.createElement("button");
     editButton.type = "button";
-    editButton.className = "icon-button";
+    editButton.className = "task-action-btn";
     editButton.title = "编辑";
     editButton.textContent = "✎";
     editButton.addEventListener("click", () => editTask(task));
 
     const deleteButton = document.createElement("button");
     deleteButton.type = "button";
-    deleteButton.className = "icon-button danger";
+    deleteButton.className = "task-action-btn danger";
     deleteButton.title = "删除";
     deleteButton.textContent = "✕";
     deleteButton.addEventListener("click", () => deleteTask(task));
 
     actions.append(editButton, deleteButton);
-
     item.append(checkbox, content, actions);
     taskList.append(item);
   });
 }
 
-function editTask(task) {
-  const newTitle = window.prompt("请输入新的任务内容：", task.title);
-  if (newTitle === null) return;
-
-  const trimmedTitle = newTitle.trim();
-  if (!trimmedTitle) {
-    window.alert("任务内容不能为空。");
-    return;
-  }
-
-  task.title = trimmedTitle;
-  saveTasks();
-  renderTasks();
-}
-
-function deleteTask(task) {
-  if (!window.confirm(`确定删除“${task.title}”吗？`)) return;
-
-  tasks = tasks.filter((current) => current.id !== task.id);
-  saveTasks();
-  renderTasks();
-}
-
-function setupHeader() {
-  const hour = new Date().getHours();
-  let greeting = "你好";
-  if (hour < 6) greeting = "夜深了，记得休息";
-  else if (hour < 11) greeting = "早上好，新的一天";
-  else if (hour < 14) greeting = "中午好，保持专注";
-  else if (hour < 18) greeting = "下午好，继续加油";
-  else if (hour < 22) greeting = "晚上好，辛苦了";
-  else greeting = "夜深了，记得早点休息";
-
-  greetingEl.textContent = greeting;
-
-  const date = new Date();
-  const weekday = ["日", "一", "二", "三", "四", "五", "六"][date.getDay()];
-  todayDateEl.textContent = `${date.getFullYear()} 年 ${date.getMonth() + 1} 月 ${date.getDate()} 日 星期${weekday}`;
-
-  dailyQuoteEl.textContent = quotes[date.getDate() % quotes.length];
-}
-
-taskForm.addEventListener("submit", (event) => {
-  event.preventDefault();
+// =========================================================
+// 任务操作
+// =========================================================
+function addTask() {
   const title = taskInput.value.trim();
   if (!title) {
     taskInput.focus();
     return;
   }
-
   const dueDateValue = dueDateInput.value ? new Date(dueDateInput.value) : null;
-
   tasks.push({
     id: createTaskId(),
     title,
@@ -431,7 +420,6 @@ taskForm.addEventListener("submit", (event) => {
     dueDate: dueDateValue,
     createdAt: new Date().toISOString()
   });
-
   saveTasks();
   taskInput.value = "";
   dueDateInput.value = "";
@@ -440,86 +428,94 @@ taskForm.addEventListener("submit", (event) => {
   recurrenceSelect.value = "none";
   renderTasks();
   taskInput.focus();
-});
+}
 
-searchInput.addEventListener("input", () => {
-  searchKeyword = searchInput.value.trim();
-  renderTasks();
-});
-
-sortSelect.addEventListener("change", () => {
-  currentSort = sortSelect.value;
-  renderTasks();
-});
-
-filterButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    currentFilter = button.dataset.filter;
-    filterButtons.forEach((current) => {
-      current.classList.toggle("active", current === button);
-    });
-    renderTasks();
-  });
-});
-
-clearCompletedButton.addEventListener("click", () => {
-  const completedCount = tasks.filter((task) => task.completed).length;
-  if (completedCount === 0 || !window.confirm(`确定清除 ${completedCount} 个已完成任务吗？`)) return;
-
-  tasks = tasks.filter((task) => !task.completed);
+function editTask(task) {
+  const newTitle = window.prompt("请输入新的任务内容：", task.title);
+  if (newTitle === null) return;
+  const trimmedTitle = newTitle.trim();
+  if (!trimmedTitle) {
+    window.alert("任务内容不能为空。");
+    return;
+  }
+  task.title = trimmedTitle;
   saveTasks();
   renderTasks();
-});
-
-if (progressRingFill) {
-  progressRingFill.style.strokeDasharray = ringCircumference;
-  progressRingFill.style.strokeDashoffset = ringCircumference;
 }
 
-setupHeader();
-renderCategoryChips();
-renderTasks();
-bindSettingsPanel();
-bindTimerControls();
-
-// ========== 主题管理 ==========
-const themeStorageKey = "student-todo-theme";
-const themeToggle = document.querySelector("#theme-toggle");
-
-function getStoredTheme() {
-  return localStorage.getItem(themeStorageKey);
+function deleteTask(task) {
+  if (!window.confirm(`确定删除“${task.title}”吗？`)) return;
+  tasks = tasks.filter((current) => current.id !== task.id);
+  saveTasks();
+  renderTasks();
 }
 
-function getSystemTheme() {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-}
-
-function applyTheme(theme) {
-  document.documentElement.setAttribute("data-theme", theme);
-  localStorage.setItem(themeStorageKey, theme);
-  if (themeToggle) {
-    themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+function scheduleRecurrence(task) {
+  const baseDate = task.dueDate ? new Date(task.dueDate) : new Date();
+  let nextDue = null;
+  if (task.recurrence === "daily") {
+    nextDue = new Date(baseDate);
+    nextDue.setDate(nextDue.getDate() + 1);
+  } else if (task.recurrence === "weekly") {
+    nextDue = new Date(baseDate);
+    nextDue.setDate(nextDue.getDate() + 7);
+  } else if (task.recurrence === "monthly") {
+    nextDue = new Date(baseDate);
+    nextDue.setMonth(nextDue.getMonth() + 1);
   }
-}
-
-function initTheme() {
-  const stored = getStoredTheme();
-  applyTheme(stored || getSystemTheme());
-
-  if (themeToggle) {
-    themeToggle.addEventListener("click", () => {
-      const current = document.documentElement.getAttribute("data-theme") || "light";
-      applyTheme(current === "dark" ? "light" : "dark");
-    });
-  }
-
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (event) => {
-    if (!getStoredTheme()) {
-      applyTheme(event.matches ? "dark" : "light");
-    }
+  tasks.push({
+    id: createTaskId(),
+    title: task.title,
+    completed: false,
+    priority: task.priority,
+    category: task.category,
+    recurrence: task.recurrence,
+    dueDate: nextDue,
+    createdAt: new Date().toISOString()
   });
+  saveTasks();
 }
-// ========== 番茄钟 ==========
+
+// =========================================================
+// 庆祝动效
+// =========================================================
+const confettiColors = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#06b6d4"];
+
+function triggerCelebration(item) {
+  if (!confettiContainer || !item) return;
+  item.classList.add("celebrate");
+  setTimeout(() => item.classList.remove("celebrate"), 600);
+
+  const rect = item.getBoundingClientRect();
+  const originX = rect.left + rect.width / 2;
+  const originY = rect.top + rect.height / 2;
+  for (let i = 0; i < 18; i += 1) spawnConfetti(originX, originY);
+}
+
+function spawnConfetti(x, y) {
+  const piece = document.createElement("span");
+  piece.className = "confetti";
+  piece.style.left = `${x}px`;
+  piece.style.top = `${y}px`;
+  piece.style.background = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+  const drift = (Math.random() - 0.5) * 220;
+  piece.animate(
+    [
+      { transform: "translate(0, 0) rotate(0deg)", opacity: 1 },
+      { transform: `translate(${drift}px, 220px) rotate(${Math.random() * 540 + 180}deg)`, opacity: 0 }
+    ],
+    {
+      duration: 900 + Math.random() * 400,
+      easing: "cubic-bezier(0.3, 0.6, 0.4, 1)"
+    }
+  );
+  confettiContainer.append(piece);
+  setTimeout(() => piece.remove(), 1500);
+}
+
+// =========================================================
+// 番茄钟
+// =========================================================
 function formatTime(seconds) {
   const minutes = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -528,27 +524,18 @@ function formatTime(seconds) {
 
 function renderTimer() {
   if (timerDisplay) timerDisplay.textContent = formatTime(timerState.remaining);
-
   if (timerPhase) {
     timerPhase.textContent = timerState.phase === "focus" ? "专注" : "休息";
     timerPhase.classList.toggle("is-break", timerState.phase === "break");
   }
-
-  if (timerCard) {
-    timerCard.classList.toggle("is-break", timerState.phase === "break");
-  }
-
-  if (timerToggle) {
-    timerToggle.textContent = timerState.running ? "暂停" : "继续";
-  }
-
-  if (timerCount) {
-    timerCount.textContent = String(timerState.pomodoroCount);
-  }
+  if (timerCard) timerCard.classList.toggle("is-break", timerState.phase === "break");
+  if (timerToggle) timerToggle.textContent = timerState.running ? "暂停" : "继续";
+  if (timerCount) timerCount.textContent = String(timerState.pomodoroCount);
 
   const total = timerState.phase === "focus" ? POMODORO_DURATION : BREAK_DURATION;
   const progress = 1 - timerState.remaining / total;
   if (timerRingFill) {
+    timerRingFill.style.strokeDasharray = timerRingCircumference;
     timerRingFill.style.strokeDashoffset = timerRingCircumference * (1 - progress);
   }
 }
@@ -604,11 +591,7 @@ function finishPhase(options = {}) {
 
 function sendNotification(title, body) {
   if ("Notification" in window && Notification.permission === "granted") {
-    try {
-      new Notification(title, { body, silent: false });
-    } catch (error) {
-      console.warn("通知发送失败：", error);
-    }
+    try { new Notification(title, { body }); } catch (error) { console.warn(error); }
   }
 }
 
@@ -618,35 +601,9 @@ function requestNotificationPermission() {
   }
 }
 
-// ========== 重复任务 ==========
-function scheduleRecurrence(task) {
-  const baseDate = task.dueDate ? new Date(task.dueDate) : new Date();
-  let nextDue = null;
-
-  if (task.recurrence === "daily") {
-    nextDue = new Date(baseDate);
-    nextDue.setDate(nextDue.getDate() + 1);
-  } else if (task.recurrence === "weekly") {
-    nextDue = new Date(baseDate);
-    nextDue.setDate(nextDue.getDate() + 7);
-  } else if (task.recurrence === "monthly") {
-    nextDue = new Date(baseDate);
-    nextDue.setMonth(nextDue.getMonth() + 1);
-  }
-
-  tasks.push({
-    id: createTaskId(),
-    title: task.title,
-    completed: false,
-    priority: task.priority,
-    category: task.category,
-    recurrence: task.recurrence,
-    dueDate: nextDue,
-    createdAt: new Date().toISOString()
-  });
-}
-
-// ========== 数据导入导出 ==========
+// =========================================================
+// 数据管理
+// =========================================================
 function setSettingsStatus(message, type) {
   if (!settingsStatus) return;
   settingsStatus.textContent = message;
@@ -681,7 +638,6 @@ function exportAsJson() {
       createdAt: task.createdAt
     }))
   };
-
   downloadFile(`student-todo-${Date.now()}.json`, JSON.stringify(payload, null, 2), "application/json");
   setSettingsStatus(`已导出 ${tasks.length} 条任务。`, "success");
 }
@@ -693,17 +649,15 @@ function exportAsCsv() {
     const stringValue = String(value);
     return /[",\n]/.test(stringValue) ? `"${stringValue.replace(/"/g, "\"\"")}"` : stringValue;
   };
-
   const rows = tasks.map((task) => [
     task.title,
     task.completed ? "已完成" : "未完成",
-    { low: "低", medium: "中", high: "高" }[task.priority] || "中",
+    priorityLabels[task.priority] || "中",
     categoryNames[task.category] || "通用",
-    { none: "不重复", daily: "每天", weekly: "每周", monthly: "每月" }[task.recurrence] || "不重复",
+    recurrenceLabels[task.recurrence] || "不重复",
     task.dueDate ? task.dueDate.toISOString().slice(0, 10) : "",
     task.createdAt ? task.createdAt.slice(0, 10) : ""
   ]);
-
   const content = [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\n");
   downloadFile(`student-todo-${Date.now()}.csv`, "\uFEFF" + content, "text/csv;charset=utf-8");
   setSettingsStatus(`已导出 ${tasks.length} 条任务为 CSV。`, "success");
@@ -715,17 +669,12 @@ function importFromJson(file) {
     try {
       const parsed = JSON.parse(reader.result);
       const incoming = Array.isArray(parsed) ? parsed : Array.isArray(parsed.tasks) ? parsed.tasks : null;
-
       if (!incoming) {
         setSettingsStatus("文件格式不正确。", "error");
         return;
       }
-
       const confirmed = window.confirm(`检测到 ${incoming.length} 条任务，是否覆盖当前数据？\n\n确定 = 覆盖，取消 = 追加。`);
-      if (confirmed) {
-        tasks.length = 0;
-      }
-
+      if (confirmed) tasks.length = 0;
       incoming.forEach((entry) => {
         if (!entry || !entry.title) return;
         tasks.push({
@@ -739,7 +688,6 @@ function importFromJson(file) {
           createdAt: entry.createdAt || new Date().toISOString()
         });
       });
-
       saveTasks();
       renderTasks();
       setSettingsStatus(`成功导入 ${incoming.length} 条任务。`, "success");
@@ -759,12 +707,42 @@ function clearAllTasks() {
   setSettingsStatus("已清空所有任务。", "success");
 }
 
-function bindSettingsPanel() {
+// =========================================================
+// 主题
+// =========================================================
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem(themeStorageKey, theme);
+  if (themeToggle) themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+}
+
+function initTheme() {
+  const stored = localStorage.getItem(themeStorageKey);
+  const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  applyTheme(stored || systemTheme);
+
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      const current = document.documentElement.getAttribute("data-theme") || "light";
+      applyTheme(current === "dark" ? "light" : "dark");
+    });
+  }
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (event) => {
+    if (!localStorage.getItem(themeStorageKey)) applyTheme(event.matches ? "dark" : "light");
+  });
+}
+
+// =========================================================
+// 设置面板
+// =========================================================
+function bindSettings() {
   if (settingsToggle && settingsPanel) {
     settingsToggle.addEventListener("click", () => {
       settingsPanel.hidden = !settingsPanel.hidden;
-      if (!settingsPanel.hidden) setSettingsStatus("");
     });
+  }
+  if (settingsClose && settingsPanel) {
+    settingsClose.addEventListener("click", () => { settingsPanel.hidden = true; });
   }
   if (exportJsonButton) exportJsonButton.addEventListener("click", exportAsJson);
   if (exportCsvButton) exportCsvButton.addEventListener("click", exportAsCsv);
@@ -776,7 +754,92 @@ function bindSettingsPanel() {
   if (clearAllButton) clearAllButton.addEventListener("click", clearAllTasks);
 }
 
-function bindTimerControls() {
+// =========================================================
+// 顶部问候 / 寄语 / 日期
+// =========================================================
+function setupHeader() {
+  const hour = new Date().getHours();
+  let greeting = "你好";
+  if (hour < 6) greeting = "夜深了，记得休息";
+  else if (hour < 11) greeting = "早上好，新的一天";
+  else if (hour < 14) greeting = "中午好，保持专注";
+  else if (hour < 18) greeting = "下午好，继续加油";
+  else if (hour < 22) greeting = "晚上好，辛苦了";
+  else greeting = "夜深了，记得早点休息";
+  if (greetingEl) greetingEl.textContent = greeting;
+
+  const date = new Date();
+  const weekday = ["日", "一", "二", "三", "四", "五", "六"][date.getDay()];
+  if (todayDateEl) {
+    todayDateEl.textContent = `${date.getMonth() + 1} 月 ${date.getDate()} 日 · 星期${weekday}`;
+  }
+  if (dailyQuoteEl) {
+    dailyQuoteEl.innerHTML = `<span class="quote-bar__mark" aria-hidden="true">“</span>${quotes[date.getDate() % quotes.length]}`;
+  }
+}
+
+// =========================================================
+// 视图切换（侧栏导航）
+// =========================================================
+function bindNav() {
+  navItems.forEach((item) => {
+    item.addEventListener("click", (event) => {
+      event.preventDefault();
+      navItems.forEach((n) => n.classList.toggle("active", n === item));
+      currentView = item.dataset.view || "tasks";
+      renderTasks();
+    });
+  });
+}
+
+// =========================================================
+// 事件绑定
+// =========================================================
+function bindEvents() {
+  if (taskSubmit) taskSubmit.addEventListener("click", addTask);
+  if (taskInput) {
+    taskInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        addTask();
+      }
+    });
+  }
+
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      searchKeyword = searchInput.value.trim();
+      renderTasks();
+    });
+  }
+
+  if (sortSelect) {
+    sortSelect.addEventListener("change", () => {
+      currentSort = sortSelect.value;
+      renderTasks();
+    });
+  }
+
+  filterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      currentFilter = button.dataset.filter;
+      filterButtons.forEach((current) => {
+        current.classList.toggle("active", current === button);
+      });
+      renderTasks();
+    });
+  });
+
+  if (clearCompletedButton) {
+    clearCompletedButton.addEventListener("click", () => {
+      const completedCount = tasks.filter((task) => task.completed).length;
+      if (completedCount === 0 || !window.confirm(`确定清除 ${completedCount} 个已完成任务吗？`)) return;
+      tasks = tasks.filter((task) => !task.completed);
+      saveTasks();
+      renderTasks();
+    });
+  }
+
   if (timerToggle) {
     timerToggle.addEventListener("click", () => {
       requestNotificationPermission();
@@ -786,66 +849,16 @@ function bindTimerControls() {
   }
   if (timerReset) timerReset.addEventListener("click", resetTimer);
   if (timerSkip) timerSkip.addEventListener("click", skipPhase);
-
-  if (timerRingFill) {
-    timerRingFill.style.strokeDasharray = timerRingCircumference;
-  }
-
-  renderTimer();
 }
 
+// =========================================================
+// 启动
+// =========================================================
+setupHeader();
+renderCategoryChips();
+renderTasks();
+bindEvents();
+bindSettings();
+bindNav();
+renderTimer();
 initTheme();
-// ========== 完成庆祝动效 ==========
-const confettiContainer = document.querySelector("#confetti-container");
-const confettiColors = ["#38bdf8", "#6366f1", "#a855f7", "#fb923c", "#10b981", "#f59e0b"];
-
-function triggerCelebration(item) {
-  if (!confettiContainer || !item) return;
-
-  item.classList.add("celebrate");
-  setTimeout(() => item.classList.remove("celebrate"), 600);
-
-  const rect = item.getBoundingClientRect();
-  const originX = rect.left + rect.width / 2;
-  const originY = rect.top + rect.height / 2;
-
-  for (let i = 0; i < 18; i += 1) {
-    spawnConfetti(originX, originY);
-  }
-}
-
-function spawnConfetti(x, y) {
-  const piece = document.createElement("span");
-  piece.className = "confetti";
-  piece.style.left = `${x}px`;
-  piece.style.top = `${y}px`;
-  piece.style.background = confettiColors[Math.floor(Math.random() * confettiColors.length)];
-  piece.style.transform = `translate(0, 0) rotate(${Math.random() * 360}deg)`;
-
-  const drift = (Math.random() - 0.5) * 220;
-  piece.style.setProperty("--drift", `${drift}px`);
-  piece.animate(
-    [
-      { transform: `translate(0, 0) rotate(0deg)`, opacity: 1 },
-      { transform: `translate(${drift}px, 220px) rotate(${Math.random() * 540 + 180}deg)`, opacity: 0 }
-    ],
-    {
-      duration: 900 + Math.random() * 400,
-      easing: "cubic-bezier(0.3, 0.6, 0.4, 1)"
-    }
-  );
-
-  confettiContainer.append(piece);
-  setTimeout(() => piece.remove(), 1500);
-}
-
-
-
-
-
-
-
-
-
-
-

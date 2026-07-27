@@ -3,190 +3,187 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#38bdf8">
+  <meta name="theme-color" content="#3b82f6">
   <meta name="description" content="一个帮助学生记录每日学习任务的网页应用">
   <title>学生学习任务管理器</title>
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📚%3C/text%3E%3C/svg%3E">
 </head>
 <body>
-  <div class="background-decor" aria-hidden="true">
-    <span class="bubble bubble-1"></span>
-    <span class="bubble bubble-2"></span>
-    <span class="bubble bubble-3"></span>
-    <svg class="float-shape float-shape-1" viewBox="0 0 100 100" aria-hidden="true">
-      <path d="M50 5 L61 38 L95 38 L67 58 L78 91 L50 71 L22 91 L33 58 L5 38 L39 38 Z" fill="rgba(255,255,255,0.5)"/>
-    </svg>
-    <svg class="float-shape float-shape-2" viewBox="0 0 100 100" aria-hidden="true">
-      <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="3" stroke-dasharray="6 6"/>
-    </svg>
+  <div class="aurora" aria-hidden="true">
+    <span class="aurora__blob aurora__blob--1"></span>
+    <span class="aurora__blob aurora__blob--2"></span>
+    <span class="aurora__blob aurora__blob--3"></span>
   </div>
 
-  <main class="app">
-    <header class="hero">
-      <div class="hero-text">
-        <div class="hero-top">
-          <p id="greeting" class="greeting">
-            <span class="greeting__wave" aria-hidden="true">👋</span>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand__mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M19 2H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h11v12zM5 6H3v15c0 1.1.9 2 2 2h15v-2H5V6z"/></svg>
+        </span>
+        <div>
+          <strong>学习台</strong>
+          <span>Student Todo</span>
+        </div>
+      </div>
+
+      <nav class="sidebar__nav">
+        <a class="nav-item active" href="#tasks" data-view="tasks">
+          <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+          任务
+        </a>
+        <a class="nav-item" href="#today" data-view="today">
+          <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z"/></svg>
+          今日
+        </a>
+        <a class="nav-item" href="#upcoming" data-view="upcoming">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7z"/></svg>
+          即将
+        </a>
+        <a class="nav-item" href="#stats" data-view="stats">
+          <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+          统计
+        </a>
+      </nav>
+
+      <section class="timer-card">
+        <header class="timer-card__head">
+          <span class="timer-card__chip" id="timer-phase">专注</span>
+          <h3>番茄钟</h3>
+        </header>
+        <div class="timer-display" id="timer-display">25:00</div>
+        <div class="timer-card__controls">
+          <button id="timer-toggle" type="button" class="timer-button timer-button--primary">开始</button>
+          <button id="timer-skip" type="button" class="timer-button" title="切换阶段">↻</button>
+          <button id="timer-reset" type="button" class="timer-button" title="重置">⟲</button>
+        </div>
+        <div class="timer-card__meta">
+          <span>今日完成 <strong id="timer-count">0</strong> 个番茄</span>
+        </div>
+        <svg class="timer-ring" viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="timer-ring__track" cx="50" cy="50" r="44"></circle>
+          <circle id="timer-ring-fill" class="timer-ring__fill" cx="50" cy="50" r="44"></circle>
+        </svg>
+      </section>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="topbar__greeting">
+            <span aria-hidden="true">👋</span>
             <span id="greeting-text">你好，今天也要加油呀</span>
           </p>
-          <button id="theme-toggle" class="theme-toggle" type="button" aria-label="切换主题">
+          <h1 id="today-date" class="topbar__date">—</h1>
+        </div>
+        <div class="topbar__actions">
+          <button id="settings-toggle" type="button" class="icon-pill" aria-label="数据管理">
+            <svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-1.7-1L15 3.5h-4l-.3 2.5a7.5 7.5 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 1.7 1l.3 2.5h4l.3-2.5a7.5 7.5 0 0 0 1.7-1l2.4 1 2-3.4zM12 15.5a3.5 3.5 0 1 1 3.5-3.5 3.5 3.5 0 0 1-3.5 3.5z"/></svg>
+          </button>
+          <button id="theme-toggle" type="button" class="icon-pill" aria-label="切换主题">
             <span class="theme-toggle__icon theme-toggle__icon--sun" aria-hidden="true">☀️</span>
             <span class="theme-toggle__icon theme-toggle__icon--moon" aria-hidden="true">🌙</span>
           </button>
         </div>
-        <h1 class="hero-title">学生学习任务管理器</h1>
-        <p id="today-date" class="today-date"></p>
-        <p id="daily-quote" class="daily-quote">
-          <span class="daily-quote__mark" aria-hidden="true">“</span>
-          <span id="daily-quote-text">每天进步一点点，就是最好的学习节奏。</span>
-        </p>
-      </div>
-      <div class="progress-card" role="img" aria-label="今日完成进度">
-        <svg class="progress-ring" viewBox="0 0 140 140" aria-hidden="true">
-          <defs>
-            <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#38bdf8"/>
-              <stop offset="50%" stop-color="#6366f1"/>
-              <stop offset="100%" stop-color="#a855f7"/>
-            </linearGradient>
-            <filter id="glowFilter">
-              <feGaussianBlur stdDeviation="3" result="blur"/>
-              <feMerge>
-                <feMergeNode in="blur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-          </defs>
-          <circle class="progress-ring__track" cx="70" cy="70" r="58"></circle>
-          <circle id="progress-ring__fill" class="progress-ring__fill" cx="70" cy="70" r="58"
-                  filter="url(#glowFilter)"></circle>
-        </svg>
-        <div class="progress-info">
+      </header>
+
+      <p id="daily-quote-text" class="quote-bar">
+        <span class="quote-bar__mark" aria-hidden="true">“</span>
+        每天进步一点点，就是最好的学习节奏。
+      </p>
+
+      <section class="stats-grid" aria-label="任务统计">
+        <article class="stat-card">
+          <span class="stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8 1.5 1.5-9.5 9.5L7.5 12.5z M4 4h16v2H4z"/></svg>
+          </span>
+          <div>
+            <span class="stat-label">全部任务</span>
+            <strong id="stat-total">0</strong>
+          </div>
+        </article>
+        <article class="stat-card stat-card--success">
+          <span class="stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M9 16.2l-3.5-3.5L4 14.2l5 5 11-11-1.4-1.4z"/></svg>
+          </span>
+          <div>
+            <span class="stat-label">已完成</span>
+            <strong id="stat-done">0</strong>
+          </div>
+        </article>
+        <article class="stat-card stat-card--info">
+          <span class="stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7z"/></svg>
+          </span>
+          <div>
+            <span class="stat-label">进行中</span>
+            <strong id="stat-active">0</strong>
+          </div>
+        </article>
+        <article class="stat-card stat-card--warning">
+          <span class="stat-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 4l8.5 15h-17L12 6zm-1 5v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
+          </span>
+          <div>
+            <span class="stat-label">已逾期</span>
+            <strong id="stat-overdue">0</strong>
+          </div>
+        </article>
+      </section>
+
+      <section class="progress-band" aria-label="今日进度">
+        <div class="progress-band__info">
+          <span>今日完成率</span>
           <strong id="progress-percent">0%</strong>
-          <span>完成率</span>
+        </div>
+        <div class="progress-band__bar">
+          <span id="progress-bar-fill"></span>
         </div>
         <svg class="progress-sparkle" viewBox="0 0 40 40" aria-hidden="true">
           <path d="M20 4 L22 18 L36 20 L22 22 L20 36 L18 22 L4 20 L18 18 Z" fill="#a855f7"/>
         </svg>
-      </div>
-    </header>
+      </section>
 
-    <section class="stats" aria-label="任务统计">
-      <article class="stat-card">
-        <span class="stat-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8 1.5 1.5-9.5 9.5L7.5 12.5z M4 4h16v2H4z"/></svg>
-        </span>
-        <span class="stat-label">全部任务</span>
-        <strong id="stat-total">0</strong>
-      </article>
-      <article class="stat-card">
-        <span class="stat-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M9 16.2l-3.5-3.5L4 14.2l5 5 11-11-1.4-1.4z"/></svg>
-        </span>
-        <span class="stat-label">已完成</span>
-        <strong id="stat-done">0</strong>
-      </article>
-      <article class="stat-card">
-        <span class="stat-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm0 18c-4.4 0-8-3.6-8-8s3.6-8 8-8 8 3.6 8 8-3.6 8-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7z"/></svg>
-        </span>
-        <span class="stat-label">进行中</span>
-        <strong id="stat-active">0</strong>
-      </article>
-      <article class="stat-card stat-warning">
-        <span class="stat-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M12 2L1 21h22L12 2zm0 4l8.5 15h-17L12 6zm-1 5v4h2v-4h-2zm0 6v2h2v-2h-2z"/></svg>
-        </span>
-        <span class="stat-label">已逾期</span>
-        <strong id="stat-overdue">0</strong>
-      </article>
-    </section>
-
-    <form id="task-form" class="task-form">
-      <input id="task-input" type="text" placeholder="例如：完成 JavaScript 练习" autocomplete="off" required>
-
-      <div class="task-form__row">
-        <select id="category-select" aria-label="学科分类">
-          <option value="general" selected>📚 通用</option>
-          <option value="programming">💻 编程</option>
-          <option value="math">🧮 数学</option>
-          <option value="english">🌐 英语</option>
-          <option value="reading">📖 阅读</option>
-          <option value="other">✨ 其他</option>
-        </select>
-
-        <select id="priority-select" aria-label="任务优先级">
-          <option value="low">低优先级</option>
-          <option value="medium" selected>中优先级</option>
-          <option value="high">高优先级</option>
-        </select>
-
-        <input id="due-date" type="date" aria-label="截止日期">
-
-        <button type="submit">
-          <span>添加任务</span>
-          <svg class="submit-icon" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/>
-          </svg>
+      <section class="composer" aria-label="新建任务">
+        <div class="composer__main">
+          <input id="task-input" type="text" placeholder="今天要完成什么？" autocomplete="off" required>
+        </div>
+        <div class="composer__meta">
+          <select id="category-select" aria-label="学科分类">
+            <option value="general" selected>📚 通用</option>
+            <option value="programming">💻 编程</option>
+            <option value="math">🧮 数学</option>
+            <option value="english">🌐 英语</option>
+            <option value="reading">📖 阅读</option>
+            <option value="other">✨ 其他</option>
+          </select>
+          <select id="priority-select" aria-label="优先级">
+            <option value="low">🟢 低</option>
+            <option value="medium" selected>🟡 中</option>
+            <option value="high">🔴 高</option>
+          </select>
+          <select id="recurrence-select" aria-label="重复">
+            <option value="none" selected>不重复</option>
+            <option value="daily">每天</option>
+            <option value="weekly">每周</option>
+            <option value="monthly">每月</option>
+          </select>
+          <input id="due-date" type="date" aria-label="截止日期">
+        </div>
+        <button id="task-submit" type="button" class="composer__submit">
+          <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
         </button>
-      </div>
-    </form>
+      </section>
 
+      <section class="toolbar">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15.5 14h-.8l-.3-.3a6.5 6.5 0 1 0-.7.7l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/>
+          </svg>
+          <input id="search-input" type="search" placeholder="搜索任务" autocomplete="off">
+        </div>
 
-    <section class="timer-card" aria-label="番茄钟计时器">
-      <div class="timer-card__info">
-        <span class="timer-card__title">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8zm.5-13H11v6l5.2 3.2.8-1.3-4.5-2.7z"/></svg>
-          番茄钟
-        </span>
-        <span id="timer-phase" class="timer-card__phase">专注</span>
-      </div>
-      <div id="timer-display" class="timer-display">25:00</div>
-      <div class="timer-card__controls">
-        <button id="timer-toggle" type="button" class="timer-button timer-button--primary">开始</button>
-        <button id="timer-reset" type="button" class="timer-button">重置</button>
-        <button id="timer-skip" type="button" class="timer-button" title="切换阶段">跳过</button>
-      </div>
-      <div class="timer-card__meta">
-        <span>今日完成 <strong id="timer-count">0</strong> 个番茄</span>
-      </div>
-      <svg class="timer-ring" viewBox="0 0 120 120" aria-hidden="true">
-        <circle class="timer-ring__track" cx="60" cy="60" r="54"></circle>
-        <circle id="timer-ring-fill" class="timer-ring__fill" cx="60" cy="60" r="54"></circle>
-      </svg>
-    </section>
-
-    <div class="data-toolbar">
-      <button id="settings-toggle" type="button" class="data-toolbar__button">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-1.7-1L15 3.5h-4l-.3 2.5a7.5 7.5 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.5 7.5 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 1.7 1l.3 2.5h4l.3-2.5a7.5 7.5 0 0 0 1.7-1l2.4 1 2-3.4zM12 15.5a3.5 3.5 0 1 1 3.5-3.5 3.5 3.5 0 0 1-3.5 3.5z"/></svg>
-        数据管理
-      </button>
-    </div>
-
-    <div id="settings-panel" class="settings-panel" hidden>
-      <h3 class="settings-panel__title">数据管理</h3>
-      <p class="settings-panel__hint">数据保存在浏览器本地。导出后可作为备份，或迁移到其他设备。</p>
-      <div class="settings-panel__actions">
-        <button id="export-json" type="button" class="settings-button">导出 JSON</button>
-        <button id="export-csv" type="button" class="settings-button">导出 CSV</button>
-        <label class="settings-button settings-button--file">
-          导入 JSON
-          <input id="import-json" type="file" accept="application/json" hidden>
-        </label>
-        <button id="clear-all" type="button" class="settings-button settings-button--danger">清空所有</button>
-      </div>
-      <div id="settings-status" class="settings-panel__status"></div>
-    </div>
-    <section class="task-tools" aria-label="任务筛选工具">
-      <div class="search-wrap">
-        <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M15.5 14h-.8l-.3-.3a6.5 6.5 0 1 0-.7.7l.3.3v.8l5 5 1.5-1.5-5-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/>
-        </svg>
-        <input id="search-input" type="search" placeholder="搜索任务" autocomplete="off">
-      </div>
-
-      <div class="task-tools__row">
         <div class="filters" role="tablist">
           <button class="filter-button active" type="button" data-filter="all">全部</button>
           <button class="filter-button" type="button" data-filter="active">未完成</button>
@@ -195,49 +192,76 @@
         </div>
 
         <label class="sort-control">
-          <span>排序</span>
-          <select id="sort-select">
-            <option value="created">创建时间</option>
+          <select id="sort-select" aria-label="排序">
+            <option value="created">最新</option>
             <option value="due">截止日期</option>
             <option value="priority">优先级</option>
             <option value="title">标题</option>
           </select>
         </label>
-      </div>
+      </section>
 
       <div id="category-chips" class="category-chips" role="tablist" aria-label="学科筛选"></div>
-    </section>
 
-    <div class="task-summary">
-      <span id="task-count">共 0 项，已完成 0 项</span>
-      <button id="clear-completed" class="clear-button" type="button">清除已完成</button>
+      <section class="task-summary">
+        <span id="task-count">共 0 项，已完成 0 项</span>
+        <button id="clear-completed" type="button" class="link-button">清除已完成</button>
+      </section>
+
+      <div id="empty-state" class="empty-state" hidden>
+        <svg class="empty-illustration" viewBox="0 0 240 160" aria-hidden="true">
+          <defs>
+            <linearGradient id="emptyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#bfdbfe"/>
+              <stop offset="100%" stop-color="#ddd6fe"/>
+            </linearGradient>
+          </defs>
+          <circle cx="120" cy="80" r="70" fill="url(#emptyGrad)" opacity="0.6"/>
+          <rect x="70" y="50" width="100" height="80" rx="12" fill="#ffffff" stroke="#93c5fd" stroke-width="2"/>
+          <rect x="80" y="65" width="80" height="6" rx="3" fill="#bfdbfe"/>
+          <rect x="80" y="78" width="60" height="6" rx="3" fill="#e0e7ff"/>
+          <rect x="80" y="91" width="70" height="6" rx="3" fill="#e0e7ff"/>
+          <circle cx="170" cy="40" r="16" fill="#fde68a"/>
+          <path d="M164 38 L168 42 L176 34" stroke="#f59e0b" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <h3 id="empty-state-title">暂时没有任务</h3>
+        <p id="empty-state-text">添加一个今天的学习目标吧。</p>
+      </div>
+
+      <ul id="task-list" class="task-list"></ul>
+    </main>
+  </div>
+
+  <div id="settings-panel" class="settings-panel" hidden>
+    <div class="settings-panel__header">
+      <h3>数据管理</h3>
+      <button id="settings-close" type="button" class="icon-pill" aria-label="关闭">✕</button>
     </div>
-
-    <div id="empty-state" class="empty-state" hidden>
-      <svg class="empty-illustration" viewBox="0 0 220 160" aria-hidden="true">
-        <defs>
-          <linearGradient id="emptyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#bae6fd"/>
-            <stop offset="100%" stop-color="#c7d2fe"/>
-          </linearGradient>
-        </defs>
-        <circle cx="110" cy="80" r="70" fill="url(#emptyGrad)" opacity="0.5"/>
-        <rect x="60" y="50" width="100" height="80" rx="10" fill="#ffffff" stroke="#7dd3fc" stroke-width="2"/>
-        <rect x="70" y="65" width="80" height="6" rx="3" fill="#bae6fd"/>
-        <rect x="70" y="78" width="60" height="6" rx="3" fill="#e0f2fe"/>
-        <rect x="70" y="91" width="70" height="6" rx="3" fill="#e0f2fe"/>
-        <circle cx="160" cy="40" r="14" fill="#fde68a"/>
-        <path d="M156 38 L160 42 L168 34" stroke="#f59e0b" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <p id="empty-state-text" class="empty-state__text">暂时没有任务，添加一个今天的学习目标吧。</p>
+    <p>数据保存在浏览器本地。导出后可作为备份或迁移到其他设备。</p>
+    <div class="settings-panel__grid">
+      <button id="export-json" type="button" class="settings-card">
+        <strong>导出 JSON</strong>
+        <span>备份全部任务的结构化数据</span>
+      </button>
+      <button id="export-csv" type="button" class="settings-card">
+        <strong>导出 CSV</strong>
+        <span>用 Excel 或表格软件打开</span>
+      </button>
+      <label class="settings-card settings-card--file">
+        <strong>导入 JSON</strong>
+        <span>从备份文件恢复或合并任务</span>
+        <input id="import-json" type="file" accept="application/json" hidden>
+      </label>
+      <button id="clear-all" type="button" class="settings-card settings-card--danger">
+        <strong>清空所有</strong>
+        <span>删除全部任务，不可恢复</span>
+      </button>
     </div>
+    <div id="settings-status" class="settings-panel__status"></div>
+  </div>
 
-    <ul id="task-list" class="task-list"></ul>
+  <div id="confetti-container" class="confetti-container" aria-hidden="true"></div>
 
-    <div id="confetti-container" class="confetti-container" aria-hidden="true"></div>
-  </main>
   <script src="script.js"></script>
 </body>
 </html>
-
-
