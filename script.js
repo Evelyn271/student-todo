@@ -36,9 +36,9 @@ const statTotal = document.querySelector("#stat-total");
 const statDone = document.querySelector("#stat-done");
 const statActive = document.querySelector("#stat-active");
 const statOverdue = document.querySelector("#stat-overdue");
-const greetingEl = document.querySelector("#greeting");
+const greetingEl = document.querySelector("#greeting-text");
 const todayDateEl = document.querySelector("#today-date");
-const dailyQuoteEl = document.querySelector("#daily-quote");
+const dailyQuoteEl = document.querySelector("#daily-quote-text");
 
 let tasks = loadTasks();
 let currentFilter = "all";
@@ -46,7 +46,7 @@ let currentCategory = "all";
 let searchKeyword = "";
 let currentSort = "created";
 
-const ringCircumference = 2 * Math.PI * 52;
+const ringCircumference = 2 * Math.PI * 58;
 
 function createTaskId() {
   return window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
@@ -152,21 +152,62 @@ function sortTasks(list) {
   return sorted;
 }
 
+function animateNumber(element, targetValue) {
+  const current = Number(element.dataset.value || 0);
+  if (current === targetValue) {
+    element.textContent = targetValue;
+    return;
+  }
+
+  const startTime = performance.now();
+  const duration = 480;
+  const startValue = current;
+
+  element.classList.add("bump");
+  setTimeout(() => element.classList.remove("bump"), 520);
+
+  function tick(now) {
+    const progress = Math.min((now - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const value = Math.round(startValue + (targetValue - startValue) * eased);
+    element.textContent = value;
+    element.dataset.value = String(value);
+
+    if (progress < 1) {
+      requestAnimationFrame(tick);
+    }
+  }
+
+  requestAnimationFrame(tick);
+}
+
+let lastProgressPercent = -1;
+
 function renderStats() {
   const total = tasks.length;
   const done = tasks.filter((task) => task.completed).length;
   const active = total - done;
   const overdue = tasks.filter(isOverdue).length;
 
-  statTotal.textContent = total;
-  statDone.textContent = done;
-  statActive.textContent = active;
-  statOverdue.textContent = overdue;
+  animateNumber(statTotal, total);
+  animateNumber(statDone, done);
+  animateNumber(statActive, active);
+  animateNumber(statOverdue, overdue);
 
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);
   progressPercent.textContent = `${percent}%`;
   const offset = ringCircumference * (1 - percent / 100);
   progressRingFill.style.strokeDashoffset = offset;
+
+  const progressCard = document.querySelector(".progress-card");
+  if (progressCard && lastProgressPercent !== -1 && percent > lastProgressPercent) {
+    progressCard.classList.add("update-pulse");
+    if (percent === 100 && lastProgressPercent < 100) {
+      progressCard.classList.add("complete");
+    }
+    setTimeout(() => progressCard.classList.remove("update-pulse", "complete"), 800);
+  }
+  lastProgressPercent = percent;
 }
 
 function renderCategoryChips() {
@@ -204,10 +245,13 @@ function renderTasks() {
   const completedCount = tasks.filter((task) => task.completed).length;
 
   taskList.innerHTML = "";
+  const emptyText = document.querySelector("#empty-state-text");
+  if (emptyText) {
+    emptyText.textContent = tasks.length === 0
+      ? "暂时没有任务，添加一个今天的学习目标吧。"
+      : "没有符合当前条件的任务。";
+  }
   emptyState.hidden = visibleTasks.length > 0;
-  emptyState.textContent = tasks.length === 0
-    ? "暂时没有任务，添加一个今天的学习目标吧。"
-    : "没有符合当前条件的任务。";
   taskCount.textContent = `共 ${tasks.length} 项，已完成 ${completedCount} 项`;
   clearCompletedButton.disabled = completedCount === 0;
 
@@ -222,8 +266,12 @@ function renderTasks() {
     checkbox.checked = task.completed;
     checkbox.setAttribute("aria-label", `标记“${task.title}”完成`);
     checkbox.addEventListener("change", () => {
+      const wasCompleted = task.completed;
       task.completed = checkbox.checked;
       saveTasks();
+      if (!wasCompleted && task.completed) {
+        triggerCelebration(item);
+      }
       renderTasks();
     });
 
@@ -429,4 +477,48 @@ function initTheme() {
 }
 
 initTheme();
+// ========== 完成庆祝动效 ==========
+const confettiContainer = document.querySelector("#confetti-container");
+const confettiColors = ["#38bdf8", "#6366f1", "#a855f7", "#fb923c", "#10b981", "#f59e0b"];
+
+function triggerCelebration(item) {
+  if (!confettiContainer || !item) return;
+
+  item.classList.add("celebrate");
+  setTimeout(() => item.classList.remove("celebrate"), 600);
+
+  const rect = item.getBoundingClientRect();
+  const originX = rect.left + rect.width / 2;
+  const originY = rect.top + rect.height / 2;
+
+  for (let i = 0; i < 18; i += 1) {
+    spawnConfetti(originX, originY);
+  }
+}
+
+function spawnConfetti(x, y) {
+  const piece = document.createElement("span");
+  piece.className = "confetti";
+  piece.style.left = `${x}px`;
+  piece.style.top = `${y}px`;
+  piece.style.background = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+  piece.style.transform = `translate(0, 0) rotate(${Math.random() * 360}deg)`;
+
+  const drift = (Math.random() - 0.5) * 220;
+  piece.style.setProperty("--drift", `${drift}px`);
+  piece.animate(
+    [
+      { transform: `translate(0, 0) rotate(0deg)`, opacity: 1 },
+      { transform: `translate(${drift}px, 220px) rotate(${Math.random() * 540 + 180}deg)`, opacity: 0 }
+    ],
+    {
+      duration: 900 + Math.random() * 400,
+      easing: "cubic-bezier(0.3, 0.6, 0.4, 1)"
+    }
+  );
+
+  confettiContainer.append(piece);
+  setTimeout(() => piece.remove(), 1500);
+}
+
 
