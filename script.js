@@ -22,6 +22,22 @@ const taskInput = document.querySelector("#task-input");
 const categorySelect = document.querySelector("#category-select");
 const prioritySelect = document.querySelector("#priority-select");
 const dueDateInput = document.querySelector("#due-date");
+const recurrenceSelect = document.querySelector("#recurrence-select");
+const timerDisplay = document.querySelector("#timer-display");
+const timerPhase = document.querySelector("#timer-phase");
+const timerToggle = document.querySelector("#timer-toggle");
+const timerReset = document.querySelector("#timer-reset");
+const timerSkip = document.querySelector("#timer-skip");
+const timerCount = document.querySelector("#timer-count");
+const timerRingFill = document.querySelector("#timer-ring-fill");
+const timerCard = document.querySelector(".timer-card");
+const settingsToggle = document.querySelector("#settings-toggle");
+const settingsPanel = document.querySelector("#settings-panel");
+const exportJsonButton = document.querySelector("#export-json");
+const exportCsvButton = document.querySelector("#export-csv");
+const importJsonInput = document.querySelector("#import-json");
+const clearAllButton = document.querySelector("#clear-all");
+const settingsStatus = document.querySelector("#settings-status");
 const searchInput = document.querySelector("#search-input");
 const sortSelect = document.querySelector("#sort-select");
 const filterButtons = document.querySelectorAll(".filter-button");
@@ -47,6 +63,17 @@ let searchKeyword = "";
 let currentSort = "created";
 
 const ringCircumference = 2 * Math.PI * 58;
+const timerRingCircumference = 2 * Math.PI * 54;
+const POMODORO_DURATION = 25 * 60;
+const BREAK_DURATION = 5 * 60;
+
+let timerState = {
+  phase: "focus",
+  remaining: POMODORO_DURATION,
+  running: false,
+  intervalId: null,
+  pomodoroCount: 0
+};
 
 function createTaskId() {
   return window.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
@@ -91,6 +118,7 @@ function loadTasks() {
         completed: Boolean(task.completed),
         priority: ["low", "medium", "high"].includes(task.priority) ? task.priority : "medium",
         category: categoryNames[task.category] ? task.category : "general",
+        recurrence: ["none", "daily", "weekly", "monthly"].includes(task.recurrence) ? task.recurrence : "none",
         dueDate: task.dueDate ? new Date(task.dueDate) : null,
         createdAt: task.createdAt || new Date().toISOString()
       }))
@@ -108,6 +136,7 @@ function saveTasks() {
     completed: task.completed,
     priority: task.priority,
     category: task.category,
+    recurrence: task.recurrence,
     dueDate: task.dueDate ? task.dueDate.toISOString() : null,
     createdAt: task.createdAt
   }));
@@ -268,10 +297,13 @@ function renderTasks() {
     checkbox.addEventListener("change", () => {
       const wasCompleted = task.completed;
       task.completed = checkbox.checked;
-      saveTasks();
       if (!wasCompleted && task.completed) {
         triggerCelebration(item);
+        if (task.recurrence && task.recurrence !== "none") {
+          scheduleRecurrence(task);
+        }
       }
+      saveTasks();
       renderTasks();
     });
 
@@ -301,6 +333,14 @@ function renderTasks() {
       dueTag.className = `tag${dueOverdue ? " tag-due-overdue" : " tag-due"}`;
       dueTag.textContent = `📅 ${formatDueDate(task.dueDate)}`;
       meta.append(dueTag);
+    }
+
+    if (task.recurrence && task.recurrence !== "none") {
+      const recurTag = document.createElement("span");
+      recurTag.className = "tag tag-recurring";
+      const labels = { daily: "🔁 每天", weekly: "🔁 每周", monthly: "🔁 每月" };
+      recurTag.textContent = labels[task.recurrence] || "🔁 重复";
+      meta.append(recurTag);
     }
 
     content.append(title, meta);
@@ -387,6 +427,7 @@ taskForm.addEventListener("submit", (event) => {
     completed: false,
     priority: prioritySelect.value,
     category: categorySelect.value,
+    recurrence: recurrenceSelect.value,
     dueDate: dueDateValue,
     createdAt: new Date().toISOString()
   });
@@ -396,6 +437,7 @@ taskForm.addEventListener("submit", (event) => {
   dueDateInput.value = "";
   prioritySelect.value = "medium";
   categorySelect.value = "general";
+  recurrenceSelect.value = "none";
   renderTasks();
   taskInput.focus();
 });
@@ -437,6 +479,8 @@ if (progressRingFill) {
 setupHeader();
 renderCategoryChips();
 renderTasks();
+bindSettingsPanel();
+bindTimerControls();
 
 // ========== 主题管理 ==========
 const themeStorageKey = "student-todo-theme";
@@ -474,6 +518,280 @@ function initTheme() {
       applyTheme(event.matches ? "dark" : "light");
     }
   });
+}
+// ========== 番茄钟 ==========
+function formatTime(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function renderTimer() {
+  if (timerDisplay) timerDisplay.textContent = formatTime(timerState.remaining);
+
+  if (timerPhase) {
+    timerPhase.textContent = timerState.phase === "focus" ? "专注" : "休息";
+    timerPhase.classList.toggle("is-break", timerState.phase === "break");
+  }
+
+  if (timerCard) {
+    timerCard.classList.toggle("is-break", timerState.phase === "break");
+  }
+
+  if (timerToggle) {
+    timerToggle.textContent = timerState.running ? "暂停" : "继续";
+  }
+
+  if (timerCount) {
+    timerCount.textContent = String(timerState.pomodoroCount);
+  }
+
+  const total = timerState.phase === "focus" ? POMODORO_DURATION : BREAK_DURATION;
+  const progress = 1 - timerState.remaining / total;
+  if (timerRingFill) {
+    timerRingFill.style.strokeDashoffset = timerRingCircumference * (1 - progress);
+  }
+}
+
+function startTimer() {
+  if (timerState.running) return;
+  timerState.running = true;
+  renderTimer();
+  timerState.intervalId = setInterval(() => {
+    timerState.remaining -= 1;
+    if (timerState.remaining <= 0) {
+      timerState.remaining = 0;
+      finishPhase();
+      return;
+    }
+    renderTimer();
+  }, 1000);
+}
+
+function pauseTimer() {
+  timerState.running = false;
+  if (timerState.intervalId) {
+    clearInterval(timerState.intervalId);
+    timerState.intervalId = null;
+  }
+  renderTimer();
+}
+
+function resetTimer() {
+  pauseTimer();
+  timerState.phase = "focus";
+  timerState.remaining = POMODORO_DURATION;
+  renderTimer();
+}
+
+function skipPhase() {
+  pauseTimer();
+  finishPhase({ skip: true });
+}
+
+function finishPhase(options = {}) {
+  pauseTimer();
+  if (timerState.phase === "focus" && !options.skip) {
+    timerState.pomodoroCount += 1;
+    sendNotification("🍅 番茄完成！", "休息 5 分钟，然后继续。");
+  } else if (timerState.phase === "break" && !options.skip) {
+    sendNotification("⏰ 休息结束", "准备好开始下一个番茄吧！");
+  }
+  timerState.phase = timerState.phase === "focus" ? "break" : "focus";
+  timerState.remaining = timerState.phase === "focus" ? POMODORO_DURATION : BREAK_DURATION;
+  renderTimer();
+}
+
+function sendNotification(title, body) {
+  if ("Notification" in window && Notification.permission === "granted") {
+    try {
+      new Notification(title, { body, silent: false });
+    } catch (error) {
+      console.warn("通知发送失败：", error);
+    }
+  }
+}
+
+function requestNotificationPermission() {
+  if ("Notification" in window && Notification.permission === "default") {
+    Notification.requestPermission();
+  }
+}
+
+// ========== 重复任务 ==========
+function scheduleRecurrence(task) {
+  const baseDate = task.dueDate ? new Date(task.dueDate) : new Date();
+  let nextDue = null;
+
+  if (task.recurrence === "daily") {
+    nextDue = new Date(baseDate);
+    nextDue.setDate(nextDue.getDate() + 1);
+  } else if (task.recurrence === "weekly") {
+    nextDue = new Date(baseDate);
+    nextDue.setDate(nextDue.getDate() + 7);
+  } else if (task.recurrence === "monthly") {
+    nextDue = new Date(baseDate);
+    nextDue.setMonth(nextDue.getMonth() + 1);
+  }
+
+  tasks.push({
+    id: createTaskId(),
+    title: task.title,
+    completed: false,
+    priority: task.priority,
+    category: task.category,
+    recurrence: task.recurrence,
+    dueDate: nextDue,
+    createdAt: new Date().toISOString()
+  });
+}
+
+// ========== 数据导入导出 ==========
+function setSettingsStatus(message, type) {
+  if (!settingsStatus) return;
+  settingsStatus.textContent = message;
+  settingsStatus.classList.remove("success", "error");
+  if (type) settingsStatus.classList.add(type);
+}
+
+function downloadFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function exportAsJson() {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    version: 2,
+    tasks: tasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      completed: task.completed,
+      priority: task.priority,
+      category: task.category,
+      recurrence: task.recurrence,
+      dueDate: task.dueDate ? task.dueDate.toISOString() : null,
+      createdAt: task.createdAt
+    }))
+  };
+
+  downloadFile(`student-todo-${Date.now()}.json`, JSON.stringify(payload, null, 2), "application/json");
+  setSettingsStatus(`已导出 ${tasks.length} 条任务。`, "success");
+}
+
+function exportAsCsv() {
+  const headers = ["标题", "状态", "优先级", "学科", "重复", "截止日期", "创建时间"];
+  const escapeCell = (value) => {
+    if (value === null || value === undefined) return "";
+    const stringValue = String(value);
+    return /[",\n]/.test(stringValue) ? `"${stringValue.replace(/"/g, "\"\"")}"` : stringValue;
+  };
+
+  const rows = tasks.map((task) => [
+    task.title,
+    task.completed ? "已完成" : "未完成",
+    { low: "低", medium: "中", high: "高" }[task.priority] || "中",
+    categoryNames[task.category] || "通用",
+    { none: "不重复", daily: "每天", weekly: "每周", monthly: "每月" }[task.recurrence] || "不重复",
+    task.dueDate ? task.dueDate.toISOString().slice(0, 10) : "",
+    task.createdAt ? task.createdAt.slice(0, 10) : ""
+  ]);
+
+  const content = [headers, ...rows].map((row) => row.map(escapeCell).join(",")).join("\n");
+  downloadFile(`student-todo-${Date.now()}.csv`, "\uFEFF" + content, "text/csv;charset=utf-8");
+  setSettingsStatus(`已导出 ${tasks.length} 条任务为 CSV。`, "success");
+}
+
+function importFromJson(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      const incoming = Array.isArray(parsed) ? parsed : Array.isArray(parsed.tasks) ? parsed.tasks : null;
+
+      if (!incoming) {
+        setSettingsStatus("文件格式不正确。", "error");
+        return;
+      }
+
+      const confirmed = window.confirm(`检测到 ${incoming.length} 条任务，是否覆盖当前数据？\n\n确定 = 覆盖，取消 = 追加。`);
+      if (confirmed) {
+        tasks.length = 0;
+      }
+
+      incoming.forEach((entry) => {
+        if (!entry || !entry.title) return;
+        tasks.push({
+          id: entry.id || createTaskId(),
+          title: String(entry.title),
+          completed: Boolean(entry.completed),
+          priority: ["low", "medium", "high"].includes(entry.priority) ? entry.priority : "medium",
+          category: categoryNames[entry.category] ? entry.category : "general",
+          recurrence: ["none", "daily", "weekly", "monthly"].includes(entry.recurrence) ? entry.recurrence : "none",
+          dueDate: entry.dueDate ? new Date(entry.dueDate) : null,
+          createdAt: entry.createdAt || new Date().toISOString()
+        });
+      });
+
+      saveTasks();
+      renderTasks();
+      setSettingsStatus(`成功导入 ${incoming.length} 条任务。`, "success");
+    } catch (error) {
+      console.error(error);
+      setSettingsStatus("文件解析失败：不是有效的 JSON。", "error");
+    }
+  };
+  reader.readAsText(file, "utf-8");
+}
+
+function clearAllTasks() {
+  if (!window.confirm("确定清空所有任务吗？此操作无法撤销。")) return;
+  tasks = [];
+  saveTasks();
+  renderTasks();
+  setSettingsStatus("已清空所有任务。", "success");
+}
+
+function bindSettingsPanel() {
+  if (settingsToggle && settingsPanel) {
+    settingsToggle.addEventListener("click", () => {
+      settingsPanel.hidden = !settingsPanel.hidden;
+      if (!settingsPanel.hidden) setSettingsStatus("");
+    });
+  }
+  if (exportJsonButton) exportJsonButton.addEventListener("click", exportAsJson);
+  if (exportCsvButton) exportCsvButton.addEventListener("click", exportAsCsv);
+  if (importJsonInput) importJsonInput.addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
+    if (file) importFromJson(file);
+    event.target.value = "";
+  });
+  if (clearAllButton) clearAllButton.addEventListener("click", clearAllTasks);
+}
+
+function bindTimerControls() {
+  if (timerToggle) {
+    timerToggle.addEventListener("click", () => {
+      requestNotificationPermission();
+      if (timerState.running) pauseTimer();
+      else startTimer();
+    });
+  }
+  if (timerReset) timerReset.addEventListener("click", resetTimer);
+  if (timerSkip) timerSkip.addEventListener("click", skipPhase);
+
+  if (timerRingFill) {
+    timerRingFill.style.strokeDasharray = timerRingCircumference;
+  }
+
+  renderTimer();
 }
 
 initTheme();
@@ -520,5 +838,14 @@ function spawnConfetti(x, y) {
   confettiContainer.append(piece);
   setTimeout(() => piece.remove(), 1500);
 }
+
+
+
+
+
+
+
+
+
 
 
